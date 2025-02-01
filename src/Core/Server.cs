@@ -28,9 +28,9 @@ namespace Herta.Core.Server
             _builder = WebApplication.CreateBuilder(
                 new WebApplicationOptions
                 {
-                    EnvironmentName = debug? "Development" : "Production"
+                    EnvironmentName = debug ? "Development" : "Production"
                 });
-            
+
             _isDevelopment = debug;
 
             Initialize();
@@ -122,17 +122,17 @@ namespace Herta.Core.Server
         private void LifeTime()
         {
             Configure();
-            onStartUp();
+            OnStartUp();
         }
 
-        private void onStartUp()
+        private void OnStartUp()
         {
             _logger.Info("Server started.");
             _app.Run();
-            onStop();
+            OnStop();
         }
 
-        private void onStop(Action? callback = null)
+        private void OnStop(Action? callback = null)
         {
             _logger.Info("Server stopped.");
             if (callback != null)

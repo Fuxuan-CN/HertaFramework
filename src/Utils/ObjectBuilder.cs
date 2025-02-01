@@ -101,9 +101,9 @@ namespace Herta.Utils.ObjectBuilder
         {
             Type? elementType = type.IsArray ? type.GetElementType() : type.GenericTypeArguments[0];
             var GenericListType = typeof(List<>).MakeGenericType(elementType!);
-            #nullable disable
+#nullable disable
             var convertedList = (IList)Activator.CreateInstance(GenericListType);
-            #nullable enable
+#nullable enable
 
             foreach (var item in list)
             {

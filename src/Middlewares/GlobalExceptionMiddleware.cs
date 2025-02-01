@@ -29,7 +29,7 @@ namespace Herta.Middleware.GlobalException
                 string errMsg = $"{httpException.StatusCode} {httpException.Detail} {httpException.Message}";
                 string relevantStackTrace = GetRelevantStackTrace(httpException);
                 string requestInfo = $"Request: {context.Request.Method} {context.Request.Path} from {context.Connection.RemoteIpAddress}";
-                
+
                 string errLogmsg = $"{requestInfo} - {errMsg} \n {relevantStackTrace}";
                 _logger.Warn(errLogmsg);
 
