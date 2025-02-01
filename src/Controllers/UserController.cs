@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Herta.Responses.Response;
 using Herta.Models.DataModels;
-using Herta.Exceptions;
+using Herta.Exceptions.HttpException;
 
 namespace Herta.Controllers
 {

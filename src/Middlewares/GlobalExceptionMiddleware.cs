@@ -4,7 +4,7 @@ using Herta.Utils.Logger;
 using System.Net;
 using NLog;
 using System.Threading.Tasks;
-using Herta.Exceptions;
+using Herta.Exceptions.HttpException;
 
 namespace Herta.Middleware.GlobalException
 {

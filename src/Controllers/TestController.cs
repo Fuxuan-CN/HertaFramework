@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using Herta.Utils.Logger;
 using NLog;
-using Herta.Exceptions;
+using Herta.Exceptions.HttpException;
 using Herta.Responses.Response;
 using Herta.Responses.JsonResponse;
 using Herta.Responses.FileResponse;
