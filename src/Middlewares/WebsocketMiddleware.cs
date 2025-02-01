@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Authorization;
 using System;
 using System.IO;
 using System.Net.WebSockets;
@@ -59,14 +58,6 @@ namespace Herta.Middleware.Websocket
                             _logger.Trace($"Controller route: {controllerRoute}, WebSocket path: {websocketPath}, Full path: {fullWebsocketPath}");
                             if (requestPath == fullWebsocketPath)
                             {
-                                var authAttribute = methodInfo.GetCustomAttribute<AuthorizeAttribute>();
-
-                                if (authAttribute != null)
-                                {
-                                    // 警告开发者: 授权特性在WebSocket上下文中可能不生效
-                                    _logger.Warn($"[Authorize] attribute on path: {fullWebsocketPath}, may not take effect in WebSocket context. ");
-                                }
-
                                 var controllerType = controllerActionDescriptor.ControllerTypeInfo.AsType();
                                 var controller = context.RequestServices.GetService(controllerType);
 
@@ -82,12 +73,16 @@ namespace Herta.Middleware.Websocket
                                 await ((Func<WebsocketManager, Task>)methodDelegate)(webSocketManager);
                                 return;
                             }
+                            else
+                            {
+                                _logger.Trace($"Request path {requestPath} does not match {fullWebsocketPath}. skipping...");
+                            }
                         }
                     }
                 }
             }
 
-            await _next(context);
+            await _next(context); // 非WebSocket请求，继续处理
         }
     }
 }

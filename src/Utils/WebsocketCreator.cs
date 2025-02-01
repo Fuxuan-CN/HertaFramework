@@ -12,56 +12,39 @@ using NLog;
 
 namespace Herta.Utils.WebsocketCreator
 {
-    public class WebsocketManager
+    public class WebsocketManager : IDisposable
     {
         private readonly WebSocket _webSocket;
         private readonly ArraySegment<byte> _buffer;
         private readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(WebsocketManager));
-        private WebsocketState _state = WebsocketState.Idle; // 初始状态为 Idle
-        private readonly string _id = Guid.NewGuid().ToString();
+        private WebsocketState _state = WebsocketState.Closed; // 初始状态为 Closed
+        private readonly Guid _id = Guid.NewGuid();
+        private readonly object _stateLock = new object();
 
         public WebsocketManager(WebSocket webSocket)
         {
             _webSocket = webSocket;
             _buffer = new ArraySegment<byte>(new byte[8192]);
             _state = WebsocketState.Connected; // 连接建立后状态为 Connected
+            _logger.Trace($"Websocket created. Id: {_id}");
         }
 
         public async Task SendAsync(byte[] data, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
         {
-            if (_state != WebsocketState.Connected && _state != WebsocketState.Idle)
-            {
-                throw new InvalidOperationException("Cannot send data when not connected or idle.");
-            }
-            _state = WebsocketState.Communicating; // 开始发送时状态切换为 Communicating
-            _logger.Trace($"Sending data of length {data.Length}, Idle | Connected -> Communicating, id: {_id}");
-            try
+            await ExecuteWithStateCheck(async () =>
             {
                 await _webSocket.SendAsync(new ArraySegment<byte>(data), messageType, endOfMessage, cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Error sending data: {ex.Message}");
-                _state = WebsocketState.Error;
-                throw;
-            }
-            finally
-            {
-                _logger.Trace("Data sent. Communicating -> Idle");
-                _state = WebsocketState.Idle; // 发送完成后状态切换回 Idle
-            }
+            }, "Sending data");
         }
 
         public async Task SendTextAsync(string message)
         {
-            var encodedMessage = Encoding.UTF8.GetBytes(message);
-            await SendAsync(encodedMessage, WebSocketMessageType.Text, true, CancellationToken.None);
+            await SendAsync(Encoding.UTF8.GetBytes(message), WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
         public async Task SendJsonAsync<T>(T data)
         {
-            var json = JsonSerializer.Serialize(data);
-            await SendTextAsync(json);
+            await SendTextAsync(JsonSerializer.Serialize(data));
         }
 
         public async Task SendBinAsync(byte[] data)
@@ -71,120 +54,129 @@ namespace Herta.Utils.WebsocketCreator
 
         public async Task CloseAsync(int code, string? reason = null)
         {
-            if (_state != WebsocketState.Connected && _state != WebsocketState.Communicating && _state != WebsocketState.Idle)
-            {
-                throw new InvalidOperationException("Cannot close when not connected, idle, or communicating.");
-            }
-            _state = WebsocketState.Closing;
-            _logger.Trace("Closing connection. Idle | Connected | Communicating -> Closing");
-            try
+            await ExecuteWithStateCheck(async () =>
             {
                 await _webSocket.CloseAsync((WebSocketCloseStatus)code, reason, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Error closing connection: {ex.Message}");
-                _state = WebsocketState.Error;
-                _logger.Trace("Closing connection. Closing -> Error");
-                throw;
-            }
-            finally
-            {
-                _state = WebsocketState.Closed;
-                _logger.Trace($"Connection closed. Closing -> Closed, id: {_id}");
-            }
+            }, "Closing connection");
         }
 
         public async Task<string> ReceiveTextAsync()
         {
-            if (_state != WebsocketState.Connected && _state != WebsocketState.Idle)
+            return await ExecuteWithStateCheck(async () =>
             {
-                throw new InvalidOperationException("Cannot receive data when not connected or idle.");
-            }
-            _state = WebsocketState.Communicating; // 开始接收时状态切换为 Communicating
-            WebSocketReceiveResult result;
-            using (var ms = new MemoryStream())
-            {
-                do
+                WebSocketReceiveResult result;
+                using (var ms = new MemoryStream())
                 {
-                    try
+                    do
                     {
                         result = await _webSocket.ReceiveAsync(_buffer, CancellationToken.None);
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            throw new WebsocketClosedException("WebSocket connection closed.");
+                        }
+                        ms.Write(_buffer.Array!, _buffer.Offset, result.Count);
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.Error($"Error receiving data: {ex.Message}");
-                        _state = WebsocketState.Error;
-                        _logger.Trace("Receiving data. Communicating -> Error");
-                        throw;
-                    }
-                    var data = _buffer.Array ?? throw new WebsocketException("Buffer array is null");
-                    ms.Write(data, _buffer.Offset, result.Count);
-                }
-                while (!result.EndOfMessage);
+                    while (!result.EndOfMessage);
 
-                ms.Seek(0, SeekOrigin.Begin);
-
-                if (result.MessageType == WebSocketMessageType.Text)
-                {
+                    ms.Seek(0, SeekOrigin.Begin);
                     using (var reader = new StreamReader(ms, Encoding.UTF8))
                     {
-                        _state = WebsocketState.Idle; // 接收完成后状态切换回 Idle
                         return await reader.ReadToEndAsync();
                     }
                 }
-                else
-                {
-                    throw new WebsocketException("Received non-text message");
-                }
-            }
+            }, "Receiving text data");
         }
 
         public async Task<byte[]> ReceiveBinAsync()
         {
-            if (_state != WebsocketState.Connected && _state != WebsocketState.Idle)
+            return await ExecuteWithStateCheck(async () =>
             {
-                throw new InvalidOperationException("Cannot receive data when not connected or idle.");
-            }
-            _state = WebsocketState.Communicating; // 开始接收时状态切换为 Communicating
-            WebSocketReceiveResult result;
-            using (var ms = new MemoryStream())
-            {
-                do
+                WebSocketReceiveResult result;
+                using (var ms = new MemoryStream())
                 {
-                    try
+                    do
                     {
                         result = await _webSocket.ReceiveAsync(_buffer, CancellationToken.None);
+                        if (result.MessageType == WebSocketMessageType.Close)
+                        {
+                            throw new WebsocketClosedException("WebSocket connection closed.");
+                        }
+                        ms.Write(_buffer.Array!, _buffer.Offset, result.Count);
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.Error($"Error receiving data: {ex.Message}");
-                        _state = WebsocketState.Error;
-                        _logger.Trace("Receiving data. Communicating -> Error");
-                        throw;
-                    }
-                    var data = _buffer.Array ?? throw new WebsocketException("Buffer array is null");
-                    ms.Write(data, _buffer.Offset, result.Count);
-                }
-                while (!result.EndOfMessage);
+                    while (!result.EndOfMessage);
 
-                ms.Seek(0, SeekOrigin.Begin);
-
-                if (result.MessageType == WebSocketMessageType.Binary)
-                {
-                    _state = WebsocketState.Idle; // 接收完成后状态切换回 Idle
                     return ms.ToArray();
                 }
-                else
-                {
-                    throw new WebsocketException("Received non-binary message");
-                }
-            }
+            }, "Receiving binary data");
         }
 
         public WebsocketState State
         {
-            get { return _state; }
+            get
+            {
+                lock (_stateLock)
+                {
+                    return _state;
+                }
+            }
+        }
+
+        private async Task<T> ExecuteWithStateCheck<T>(Func<Task<T>> action, string actionName)
+        {
+            lock (_stateLock)
+            {
+                if (_state != WebsocketState.Connected && _state != WebsocketState.Idle)
+                {
+                    throw new InvalidOperationException($"Cannot {actionName.ToLower()} when not connected or idle.");
+                }
+                _state = WebsocketState.Communicating;
+                _logger.Trace($"{actionName}. id: {_id}");
+            }
+
+            try
+            {
+                return await action();
+            }
+            catch (WebSocketException wsEx)
+            {
+                _logger.Warn($"{actionName} failed: {wsEx.Message}");
+                lock (_stateLock)
+                {
+                    _state = WebsocketState.Closed;
+                }
+                throw new WebsocketClosedException($"{actionName} failed: WebSocket connection closed unexpectedly", wsEx);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"{actionName} failed: {ex.Message}");
+                lock (_stateLock)
+                {
+                    _state = WebsocketState.Error;
+                }
+                throw;
+            }
+            finally
+            {
+                lock (_stateLock)
+                {
+                    _state = WebsocketState.Idle;
+                    _logger.Trace($"{actionName} completed.");
+                }
+            }
+        }
+
+        private async Task ExecuteWithStateCheck(Func<Task> action, string actionName)
+        {
+            await ExecuteWithStateCheck(async () =>
+            {
+                await action();
+                return true; // 返回一个默认值
+            }, actionName);
+        }
+
+        public void Dispose()
+        {
+            _webSocket?.Dispose();
         }
     }
 }

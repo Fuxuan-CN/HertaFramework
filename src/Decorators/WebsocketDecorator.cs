@@ -7,9 +7,9 @@ namespace Herta.Decorators.Websocket
     {
         public string Path { get; }
 
-        public WebsocketAttribute(string path)
+        public WebsocketAttribute(string? path = null)
         {
-            Path = path;
+            Path = path ?? string.Empty;
         }
     }
 }

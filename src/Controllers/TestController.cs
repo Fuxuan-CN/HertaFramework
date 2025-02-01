@@ -39,7 +39,7 @@ namespace Herta.Controllers
                     string message = await Websocket.ReceiveTextAsync();
                     if (message == "close")
                     {
-                        await Websocket.CloseAsync(1000, "Closed by client");
+                        await Websocket.CloseAsync(1000, "Closed by client.");
                         break;
                     }
                     await Websocket.SendTextAsync($"Echo: {message}");
