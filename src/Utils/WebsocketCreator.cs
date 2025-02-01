@@ -20,13 +20,15 @@ namespace Herta.Utils.WebsocketCreator
         private WebsocketState _state = WebsocketState.Closed; // 初始状态为 Closed
         private readonly Guid _id = Guid.NewGuid();
         private readonly object _stateLock = new object();
+        public Dictionary<string, string?> parameters { get; set; }
 
-        public WebsocketManager(WebSocket webSocket)
+        public WebsocketManager(WebSocket webSocket, Dictionary<string, string?> parameters)
         {
             _webSocket = webSocket;
             _buffer = new ArraySegment<byte>(new byte[8192]);
             _state = WebsocketState.Connected; // 连接建立后状态为 Connected
             _logger.Trace($"Websocket created. Id: {_id}");
+            this.parameters = parameters;
         }
 
         public async Task SendAsync(byte[] data, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)

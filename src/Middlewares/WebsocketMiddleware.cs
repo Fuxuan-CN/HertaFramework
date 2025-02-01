@@ -15,6 +15,7 @@ using Herta.Utils.Logger;
 using NLog;
 using Herta.Decorators.Websocket;
 using Herta.Utils.WebsocketCreator;
+using System.Text.RegularExpressions;
 
 namespace Herta.Middleware.Websocket
 {
@@ -55,15 +56,30 @@ namespace Herta.Middleware.Websocket
                             // 拼接完整的WebSocket路径
                             var fullWebsocketPath = $"/{controllerRoute.Trim('/')}/{websocketPath.Trim('/')}".Replace("//", "/");
 
-                            _logger.Trace($"Controller route: {controllerRoute}, WebSocket path: {websocketPath}, Full path: {fullWebsocketPath}");
-                            if (requestPath == fullWebsocketPath)
+                            // 解析参数化路径
+                            var regexPattern = RegexPatternFromTemplate(fullWebsocketPath);
+                            var regex = new Regex(regexPattern);
+                            var match = regex.Match(requestPath ?? "");
+
+                            if (match.Success)
                             {
+                                var parameters = new Dictionary<string, string?>();
+                                foreach (var groupName in regex.GetGroupNames())
+                                {
+                                    if (int.TryParse(groupName, out int groupIndex) == false)
+                                    {
+                                        parameters[groupName] = match.Groups[groupName].Value ?? null;
+                                    }
+                                }
+
+                                _logger.Trace($"Matched WebSocket path: {fullWebsocketPath} with parameters: {string.Join(", ", parameters)}");
+
                                 var controllerType = controllerActionDescriptor.ControllerTypeInfo.AsType();
                                 var controller = context.RequestServices.GetService(controllerType);
 
                                 // 创建 WebSocketManager
                                 WebSocket webSocket = await context.WebSockets.AcceptWebSocketAsync();
-                                var webSocketManager = new WebsocketManager(webSocket);
+                                var webSocketManager = new WebsocketManager(webSocket, parameters);
 
                                 // 创建委托
                                 var delegateType = typeof(Func<WebsocketManager, Task>);
@@ -75,7 +91,7 @@ namespace Herta.Middleware.Websocket
                             }
                             else
                             {
-                                _logger.Trace($"Request path {requestPath} does not match {fullWebsocketPath}. skipping...");
+                                _logger.Trace($"Request path {requestPath} does not match {fullWebsocketPath}. Skipping...");
                             }
                         }
                     }
@@ -83,6 +99,12 @@ namespace Herta.Middleware.Websocket
             }
 
             await _next(context); // 非WebSocket请求，继续处理
+        }
+
+        private string RegexPatternFromTemplate(string template)
+        {
+            // 将模板中的动态部分替换为正则表达式
+            return Regex.Replace(template, @"\{(\w+)\}", "(?<$1>[^/]+)");
         }
     }
 }
