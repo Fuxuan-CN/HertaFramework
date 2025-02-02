@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 测试</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-weight: bold; /* 全部字体加粗 */
+            background-size: cover;
+            background-position: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center; /* 添加这一行来居中标题 */
+        }
+
+        .container {
+            background-color: rgba(255, 255, 255, 0.8); /* 毛玻璃效果 */
+            -webkit-backdrop-filter: blur(10px); /* 兼容 Safari 和 iOS 的毛玻璃效果 */
+            backdrop-filter: blur(10px); /* 毛玻璃效果 */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .button-group {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-right: 5px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            flex: 1;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+
+        input[type="text"], select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 5px;
+            flex: 3;
+        }
+
+        .status-box {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: rgba(255, 255, 255, 0.8); /* 毛玻璃效果 */
+            -webkit-backdrop-filter: blur(10px); /* 兼容 Safari 和 iOS 的毛玻璃效果 */
+            backdrop-filter: blur(10px); /* 毛玻璃效果 */
+        }
+
+        .status {
+            font-weight: bold;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .status.connected {
+            color: green;
+        }
+
+        .status.disconnected {
+            color: red;
+        }
+
+        .status.notConnected {
+            color: #333;
+        }
+
+        .status.connecting {
+            color: orange;
+        }
+
+        .status.error {
+            color: #ff0000;
+        }
+
+        #messageDisplay, #logDisplay {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 150px;
+            overflow-y: auto;
+            margin-top: 10px;
+            background-color: rgba(255, 255, 255, 0.8); /* 毛玻璃效果 */
+            -webkit-backdrop-filter: blur(10px); /* 兼容 Safari 和 iOS 的毛玻璃效果 */
+            backdrop-filter: blur(10px); /* 毛玻璃效果 */
+            border-radius: 5px;
+        }
+
+        #messageDisplay p, #logDisplay p {
+            margin: 0;
+        }
+
+        .received {
+            color: #333;
+        }
+
+        .sent {
+            color: #007bff;
+            text-align: right;
+        }
+
+        .toggle-log-button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #6c757d;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .toggle-log-button:hover {
+            background-color: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket 测试</h1>
+        <div class="button-group">
+            <label for="backgroundSelect">选择背景：</label>
+            <input type="file" id="backgroundSelect" accept="image/*">
+        </div>
+        <div class="button-group">
+            <button id="connectButton">连接</button>
+            <button id="disconnectButton" disabled>断开连接</button>
+            <input type="text" id="wsUrlInput" placeholder="请输入 WebSocket 地址" value="ws://localhost:8080/ws">
+        </div>
+        <div class="button-group">
+            <input type="text" id="messageInput" placeholder="请输入消息">
+            <select id="messageFormat" aria-label="选择消息格式">
+                <option value="text">Text</option>
+                <option value="binary">Binary</option>
+                <option value="json">JSON</option>
+            </select>
+            <button id="sendButton">发送</button>
+        </div>
+        <div class="status-box">
+            <div class="status" id="statusDisplay">未连接</div>
+        </div>
+        <h2>消息：</h2>
+        <div id="messageDisplay"></div>
+        <button class="toggle-log-button" id="toggleLogButton">切换日志显示</button>
+        <h2>日志：</h2>
+        <div id="logDisplay" style="display: none;">
+            <p>日志信息将显示在这里</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var ws;
+            var messageInput = document.getElementById('messageInput');
+            var wsUrlInput = document.getElementById('wsUrlInput');
+            var messageDisplay = document.getElementById('messageDisplay');
+            var statusDisplay = document.getElementById('statusDisplay');
+            var logDisplay = document.getElementById('logDisplay');
+            var connectButton = document.getElementById('connectButton');
+            var disconnectButton = document.getElementById('disconnectButton');
+            var backgroundSelect = document.getElementById('backgroundSelect');
+            var toggleLogButton = document.getElementById('toggleLogButton');
+
+            // 更新状态显示
+            function updateStatus(status, detail = "") {
+                var statusMap = {
+                    "未连接": "notConnected",
+                    "连接中...": "connecting",
+                    "连接成功": "connected",
+                    "连接断开": "disconnected",
+                    "断开连接": "disconnected",
+                    "错误": "error"
+                };
+
+                statusDisplay.className = 'status ' + statusMap[status];
+                statusDisplay.textContent = status + (detail ? ` (${detail})` : "");
+
+                // 触发动画
+                statusDisplay.style.opacity = 0;
+                setTimeout(() => {
+                    statusDisplay.style.opacity = 1;
+                }, 0);
+            }
+
+            // 添加日志
+            function addLog(message) {
+                var p = document.createElement('p');
+                var date = new Date();
+                p.textContent = date.toLocaleString() + ' - '+ message;
+                logDisplay.appendChild(p);
+                logDisplay.scrollTop = logDisplay.scrollHeight; // 自动滚动到底部
+            }
+
+            // 页面加载时恢复状态
+            window.onload = function() {
+                const savedStatus = localStorage.getItem('wsStatus');
+                const savedDetail = localStorage.getItem('wsStatusDetail');
+                if (savedStatus) {
+                    updateStatus(savedStatus, savedDetail);
+                }
+            };
+
+            // 连接 WebSocket 服务器
+            function connect(wsUrl) {
+                if (ws) {
+                    ws.close();
+                }
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function() {
+                    console.log('WebSocket is open now.');
+                    updateStatus('连接成功');
+                    messageDisplay.innerHTML += '<p class="sent">Connected to the server.</p>';
+                    addLog('WebSocket 连接成功');
+                    connectButton.disabled = true;
+                    disconnectButton.disabled = false;
+                };
+
+                ws.onmessage = function(evt) {
+                    console.log('Received message:', evt.data);
+                    messageDisplay.innerHTML += '<p class="received">Received: ' + evt.data + '</p>';
+                    addLog('收到消息: ' + evt.data);
+                };
+
+                ws.onclose = function(event) {
+                    console.log('WebSocket is closed now.');
+                    updateStatus('连接断开', `(${event.code}) ${event.reason}`);
+                    messageDisplay.innerHTML += '<p class="sent">Disconnected from the server.</p>';
+                    addLog(`WebSocket 断开连接: (${event.code}) ${event.reason}`);
+                    connectButton.disabled = false;
+                    disconnectButton.disabled = true;
+                };
+
+                ws.onerror = function(err) {
+                    console.error('WebSocket error:', err);
+                    updateStatus('错误');
+                    messageDisplay.innerHTML += '<p class="sent">Error: ' + err.message + '</p>';
+                    addLog('WebSocket 错误: ' + err.message);
+                    connectButton.disabled = false;
+                    disconnectButton.disabled = true;
+                };
+
+                updateStatus('连接中...');
+                addLog('WebSocket 连接中...');
+            }
+
+            // 发送消息到 WebSocket 服务器
+            function sendMessage() {
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    alert('WebSocket is not connected.');
+                    return;
+                }
+
+                var message = messageInput.value;
+                var format = document.getElementById('messageFormat').value;
+
+                try {
+                    switch (format) {
+                        case 'text':
+                            ws.send(message);
+                            messageDisplay.innerHTML += '<p class="sent">Sent (Text): ' + message + '</p>';
+                            addLog('发送消息 (Text): ' + message);
+                            break;
+                        case 'binary':
+                            var binaryData = new Uint8Array([message.length]); // 示例：发送消息长度作为二进制数据
+                            ws.send(binaryData);
+                            messageDisplay.innerHTML += '<p class="sent">Sent (Binary): ' + message.length + ' bytes</p>';
+                            addLog('发送消息 (Binary): ' + message.length + ' bytes');
+                            break;
+                        case 'json':
+                            var jsonData = JSON.parse(message); // 将字符串解析为 JSON 对象
+                            ws.send(JSON.stringify(jsonData)); // 发送 JSON 字符串
+                            messageDisplay.innerHTML += '<p class="sent">Sent (JSON): ' + JSON.stringify(jsonData) + '</p>';
+                            addLog('发送消息 (JSON): ' + JSON.stringify(jsonData));
+                            break;
+                        default:
+                            alert('Unsupported message format.');
+                            addLog('错误: 不支持的消息格式');
+                    }
+                } catch (error) {
+                    alert('Error sending message: ' + error.message);
+                    messageDisplay.innerHTML += '<p class="sent">Error: ' + error.message + '</p>';
+                    addLog('错误: ' + error.message);
+                }
+
+                messageInput.value = ''; // 清空输入框
+            }
+
+            // 断开连接
+            function disconnect() {
+                if (ws) {
+                    ws.close();
+                }
+            }
+
+            // 切换日志显示
+            toggleLogButton.addEventListener('click', function() {
+                logDisplay.style.display = logDisplay.style.display === 'none' ? 'block' : 'none';
+            });
+
+            // 监听背景选择变化
+            backgroundSelect.addEventListener('change', function() {
+                if (backgroundSelect.files.length > 0) {
+                    var file = backgroundSelect.files[0];
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.body.style.backgroundImage = 'url(' + e.target.result + ')';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // 绑定按钮事件
+            connectButton.addEventListener('click', function() {
+                connect(wsUrlInput.value);
+            });
+            disconnectButton.addEventListener('click', disconnect);
+            document.getElementById('sendButton').addEventListener('click', sendMessage);
+        });
+    </script>
+</body>
+</html>
