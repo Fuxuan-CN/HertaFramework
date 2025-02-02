@@ -1,10 +1,11 @@
+
 using Herta.Core.Server;
 
-class Program
+public class Program
 {
-    static void Main(string[] args)
+    public static void Main()
     {
-        var api = new HertaApiService(debug: false);
-        api.Run();
+        var server = new HertaApiService(debug: true, needAuthentication: true);
+        server.Run();
     }
 }
