@@ -34,10 +34,11 @@ namespace Herta.Controllers.UserController
             _logger.Info($"Registering user {form.Username}");
             if (!ModelState.IsValid)
             {
-                throw new HttpException(StatusCodes.Status400BadRequest, "Invalid input", ModelState.Values
-                                                                                     .SelectMany(v => v.Errors)
-                                                                                     .Select(e => e.ErrorMessage)
-                                                                                     .ToList());
+                throw new HttpException(StatusCodes.Status400BadRequest, 
+                "Invalid input", ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList());
             }
 
             var user = await _userService.RegisterAsync(form.Username, form.Password, form.Email);
@@ -51,10 +52,11 @@ namespace Herta.Controllers.UserController
             _logger.Info($"Logging in user {form.Username}");
             if (!ModelState.IsValid)
             {
-                throw new HttpException(StatusCodes.Status400BadRequest, "Invalid input", ModelState.Values
-                                                                                     .SelectMany(v => v.Errors)
-                                                                                     .Select(e => e.ErrorMessage)
-                                                                                     .ToList());
+                throw new HttpException(StatusCodes.Status400BadRequest, 
+                "Invalid input", ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList());
             }
 
             var user = await _userService.LoginAsync(form.Username, form.Password);
@@ -69,10 +71,11 @@ namespace Herta.Controllers.UserController
             _logger.Info($"Changing password for user {form.Username}");
             if (!ModelState.IsValid)
             {
-                throw new HttpException(StatusCodes.Status400BadRequest, "Invalid input", ModelState.Values
-                                                                                     .SelectMany(v => v.Errors)
-                                                                                     .Select(e => e.ErrorMessage)
-                                                                                     .ToList());
+                throw new HttpException(StatusCodes.Status400BadRequest, 
+                "Invalid input", ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList());
             }
 
             await _userService.ChangePasswordAsync(form.Username, form.OldPassword, form.NewPassword);

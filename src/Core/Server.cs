@@ -10,6 +10,7 @@ using NLog;
 using Herta.Utils.Logger;
 using Herta.Extensions.AutoServiceRegExt;
 using Herta.Extensions.AutoMiddlewareRegExt;
+using Herta.Extensions.AutoAuthRegExt;
 using Herta.Core.Contexts.DBContext;
 using Herta.Core.Services.UserService;
 using Herta.Security.Requirements.JwtRequire;
@@ -90,10 +91,7 @@ namespace Herta.Core.Server
                     };
                 });
 
-                _builder.Services.AddAuthorization(options =>
-                {
-                    options.AddPolicy("JwtAuth", policy => policy.Requirements.Add(new JwtRequirement()));
-                });
+                _builder.Services.AddAutoAuthorizationPolicies();
             }
 
             // Add CORS support

@@ -16,9 +16,9 @@ namespace Herta.Extensions.AutoMiddlewareRegExt
 
         public static IApplicationBuilder UseAutoMiddleware(this IApplicationBuilder app)
         {
-            var assembly = Assembly.GetExecutingAssembly(); // 获取当前程序集
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies(); // 获取所有作用域的程序集
 
-            var middlewareTypes = assembly.GetTypes()
+            var middlewareTypes = assemblies.SelectMany(a => a.GetTypes())
                 .Where(t => t.GetCustomAttributes<MiddlewareAttribute>().Any())
                 .OrderBy(t => t.GetCustomAttribute<MiddlewareAttribute>()?.Order ?? int.MaxValue)
                 .ToList();

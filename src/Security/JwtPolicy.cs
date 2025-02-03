@@ -1,5 +1,5 @@
 using Herta.Exceptions.HttpException;
-using Herta.Decorators.Services;
+using Herta.Decorators.AuthRegDecorator;
 using Herta.Security.Requirements.JwtRequire;
 using Herta.Interfaces.IAuthService;
 using System.Threading.Tasks;
@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 
 namespace Herta.Security.Authorization
 {
-    [Service(ServiceLifetime.Scoped)]
+    [AuthRequirement(typeof(JwtRequirement), "JwtAuth")]
     public class JwtAuthorizationHandler : AuthorizationHandler<JwtRequirement>
     {
         private readonly IAuthService _authService;

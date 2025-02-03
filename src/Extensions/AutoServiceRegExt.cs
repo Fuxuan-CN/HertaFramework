@@ -13,10 +13,12 @@ namespace Herta.Extensions.AutoServiceRegExt
 
         public static IServiceCollection AutoRegisterServices(this IServiceCollection services)
         {
-            var assembly = Assembly.GetExecutingAssembly(); // 获取当前程序集
-            var types = assembly.GetTypes(); // 获取程序集中所有类型
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies(); // 获取所有作用域的程序集
+            var serviceTypes = assemblies.SelectMany(a => a.GetTypes())
+                .Where(t => t.GetCustomAttributes<ServiceAttribute>().Any())
+                .ToList();
 
-            foreach (var type in types)
+            foreach (var type in serviceTypes)
             {
                 var serviceAttribute = type.GetCustomAttribute<ServiceAttribute>(); // 查找ServiceAttribute特性
                 if (serviceAttribute != null)
@@ -44,7 +46,7 @@ namespace Herta.Extensions.AutoServiceRegExt
                     }
                 }
             }
-
+            
             return services;
         }
     }
