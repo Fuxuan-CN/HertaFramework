@@ -135,11 +135,13 @@ public class MyService
 - 全局异常处理
 
 通过 GlobalExceptionMiddleware 捕获并处理所有异常。你可以抛出 HttpException 来返回自定义的 HTTP 状态码和错误信息：
-csharp复制
+
+```csharp
 catch (Exception ex)
 {
     throw new HttpException(400, "Invalid request", ex);
 }
+```
 
 - 自定义响应机制
 
@@ -153,8 +155,11 @@ return new JsonResponse(new { Message = "Hello, World!" });
 通过 [Websocket] 特性标记控制器方法，自动处理 WebSocket 请求：
 
 ```csharp
+using Herta.Decorators.Websocket; // WebSocket 装饰器
+using Herta.Utils.WebsocketCreator; // WebSocket 管理器
+
 [Websocket("ws/echo")]
-public async Task Echo(WebSocket webSocket)
+public async Task Echo(WebSocketManager webSocket)
 {
     // WebSocket 处理逻辑
 }
