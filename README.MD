@@ -32,7 +32,7 @@ Herta 是一个基于 ASP.NET Core 的开源框架，旨在简化 Web API 和 We
 - 手动安装
 
 ```bash
-git clone https://github.com/yourusername/Herta.Framework.git
+git clone https://github.com/Fuxuan-CN/HertaFramework
 ```
 
 ### 快速开始
