@@ -156,10 +156,10 @@ return new JsonResponse(new { Message = "Hello, World!" });
 
 ```csharp
 using Herta.Decorators.Websocket; // WebSocket 装饰器
-using Herta.Utils.WebsocketCreator; // WebSocket 管理器
+using Herta.Utils.HertaWebsocket; // WebSocket 管理器
 
 [Websocket("ws/echo")]
-public async Task Echo(WebSocketManager webSocket)
+public async Task Echo(HertaWebsocket webSocket)
 {
     // WebSocket 处理逻辑
 }
@@ -180,7 +180,7 @@ public class MyMiddleware
 ```
 
 - 授权策略注册：
-当你用 JwtBearer 授权策略时，你可以通过 [AuthRequirement] 特性标记控制器方法，并指定授权策略名称：
+当你用 JwtBearer 授权策略时，你可以通过 [AuthHandler] 特性标记控制器方法，并指定授权策略名称：
 
 下面是一个 JwtBearer 授权策略的实现：
 
@@ -196,7 +196,7 @@ using System.Text.RegularExpressions;
 
 namespace Herta.Security.Authorization
 {
-    [AuthRequirement(typeof(JwtRequirement), "JwtAuth")]
+    [AuthHandler(typeof(JwtRequirement), "JwtAuth")]
     public class JwtAuthorizationHandler : AuthorizationHandler<JwtRequirement>
     {
         private readonly IAuthService _authService;
@@ -268,4 +268,3 @@ public class MySecondMiddleware
 - 文档更新：如果添加了新功能，请更新相关文档。
 - 许可证
 Herta Framework 采用 MIT License 许可证。你可以自由使用、修改和分发代码，但需保留许可证声明。
-希望这个 README.md 文件能够帮助你更好地介绍和推广你的框架！如果有任何需要补充或修改的地方，请随时告诉我。
