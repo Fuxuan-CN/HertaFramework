@@ -1,15 +1,17 @@
 
 import requests
 
-BASE = "http://127.0.0.1:8000/api/"
+BASE = "http://127.0.0.1:8000/api"
 
-USER = f"{BASE}user"
+USER = f"{BASE}/user"
 LOGIN = f"{USER}/login"
 REG = f"{USER}/register"
-DELETE = f"{USER}/delete/{{id}}"
+DELETE = f"{USER}/delete"
 CHANGE = f"{USER}/change"
+UPDATE_INFO = f"{USER}/update/info"
+GET_INFO = f"{USER}/get/info/{{id}}"
 
-TOKEN = r"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdFVzZXIiLCJuYmYiOjE3Mzg1MDAxNTIsImV4cCI6MTczOTEwNDk1MiwiaWF0IjoxNzM4NTAwMTUyLCJpc3MiOiJob2JieS1ncm91cCJ9.rfaGLg8s3K1f7jJ11JghrXJ1CXZnM9XKOYmBd01wG3k"
+TOKEN = r"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdFVzZXIiLCJ1c2VySWQiOiIxIiwibmJmIjoxNzM4ODk4ODQ4LCJleHAiOjE3Mzk1MDM2NDgsImlhdCI6MTczODg5ODg0OCwiaXNzIjoiaG9iYnktZ3JvdXAifQ.F907K6OG7fY2uTwNh10GnPBaWML2UK1p6xU-to5w6pIeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdFVzZXIiLCJ1c2VySWQiOiIxIiwibmJmIjoxNzM4ODk4ODQ4LCJleHAiOjE3Mzk1MDM2NDgsImlhdCI6MTczODg5ODg0OCwiaXNzIjoiaG9iYnktZ3JvdXAifQ.F907K6OG7fY2uTwNh10GnPBaWML2UK1p6xU-to5w6pI"
 
 HEADERS = {
     "Authorization": f"Bearer {TOKEN}"
@@ -27,12 +29,26 @@ login_data = {
 }
 
 change_pwd = {
-    "username": "testUser",
+    "username": "testUser2",
     "OldPassword": "password123",
     "NewPassword": "password456"
 }
 
-def test_case(action: str = "register") -> None:
+update_patch = {
+    "UserId": 1,
+    "updateInfo": {
+        "Nickname": "testUser2",
+        "Hobbies": ["reading", "swimming"]
+    }
+}
+
+delete_user = {
+    "Username": "testUser",
+    "Password": "password123",
+    "Reason": "testing"
+}
+
+def test_user(action: str = "register") -> None:
     # Register
     match action:
         case "register":
@@ -40,9 +56,13 @@ def test_case(action: str = "register") -> None:
         case "login":
             response = requests.post(LOGIN, json=login_data)
         case "change":
-            response = requests.post(CHANGE, json=change_pwd)
+            response = requests.post(CHANGE, json=change_pwd, headers=HEADERS)
         case "delete":
-            response = requests.delete(DELETE.format(id=1))
+            response = requests.delete(DELETE, json=delete_user, headers=HEADERS)
+        case "update_info":
+            response = requests.patch(UPDATE_INFO, json=update_patch, headers=HEADERS)
+        case "get_info":
+            response = requests.get(GET_INFO.format(id=1))
         case _:
             print("Invalid action")
             return
@@ -51,4 +71,4 @@ def test_case(action: str = "register") -> None:
     print(response.text)
 
 if __name__ == '__main__':
-    test_case("delete")
+    test_user("delete")
