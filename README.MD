@@ -46,7 +46,7 @@ public class Program
 {
     public static void Main()
     {
-        var server = new HertaApiService(debug: true, needAuthentication: true);
+        var server = new HertaApiServer(debug: true, needAuthentication: true);
         server.Run();
     }
 }
@@ -169,6 +169,8 @@ public async Task Echo(HertaWebsocket webSocket)
 通过 [Middleware] 特性标记中间件类，自动注册到中间件管道：
 
 ```csharp
+using Herta.Decorators.Middleware;
+
 [Middleware(Order = 1)]
 public class MyMiddleware
 {
@@ -241,8 +243,12 @@ namespace Herta.Security.Authorization
 你可以通过 [Service] 特性指定服务的生命周期：
 
 ```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Herta.Decorators.Services;
+using YourNamespace.YourInterface.YourIinterfaceClass;
+
 [Service(ServiceLifetime.Singleton)]
-public class MySingletonService
+public class MySingletonService : IYourInterface
 {
     // 服务实现
 }
@@ -252,6 +258,8 @@ public class MySingletonService
 你可以通过 [Middleware] 特性指定中间件的加载顺序：
 
 ```csharp
+using Herta.Decorators.Middleware;
+
 [Middleware(Order = 2)]
 public class MySecondMiddleware
 {
@@ -266,5 +274,5 @@ public class MySecondMiddleware
 - 代码规范：遵循 C# 编程规范，确保代码清晰易读。
 - 提交 PR：在提交 PR 之前，请确保代码通过所有测试。
 - 文档更新：如果添加了新功能，请更新相关文档。
-- 许可证
+- 许可证：
 Herta Framework 采用 MIT License 许可证。你可以自由使用、修改和分发代码，但需保留许可证声明。

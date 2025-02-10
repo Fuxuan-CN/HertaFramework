@@ -5,7 +5,7 @@ public class Program
 {
     public static void Main()
     {
-        var server = new HertaApiService(debug: true, needAuthentication: true);
+        var server = new HertaApiServer(debug: true, needAuthentication: true);
         server.Run();
     }
 }

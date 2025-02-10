@@ -1,3 +1,4 @@
+
 # Herta Framework
 
 ## Introduction
@@ -45,7 +46,7 @@ public class Program
 {
     public static void Main()
     {
-        var server = new HertaApiService(debug: true, needAuthentication: true);
+        var server = new HertaApiServer(debug: true, needAuthentication: true);
         server.Run();
     }
 }
@@ -56,11 +57,13 @@ Create a service class and mark it with the `[Service]` attribute:
 
 ```csharp
 using Herta.Decorators.Services;
+using Microsoft.Extensions.DependencyInjection;
+using YourNamespace.Interfaces.YourIService;
 
 namespace MyHertaProject.Services
 {
     [Service(ServiceLifetime.Scoped)]
-    public class MyService
+    public class MyService : YourIService
     {
         public string GetMessage()
         {
@@ -119,9 +122,10 @@ Run the project and visit the URL configured in your configuration file. You sho
 // namespace MyProject.Services.MyService
 using Herta.Decorators.Services;
 using Microsoft.Extensions.DependencyInjection;
+using YourNamespace.Interfaces.YourIService;
 
 [Service(ServiceLifetime.Scoped)]
-public class MyService
+public class MyService : YourIService
 {
     public string GetMessage()
     {
@@ -167,6 +171,9 @@ public async Task Echo(HertaWebsocket webSocket)
 Mark middleware classes with the `[Middleware]` attribute to automatically register them in the middleware pipeline:
 
 ```csharp
+using Herta.Decorators.Middleware;
+using Microsoft.AspNetCore.Http;
+
 [Middleware(Order = 1)]
 public class MyMiddleware
 {
