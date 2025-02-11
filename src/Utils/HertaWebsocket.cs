@@ -31,6 +31,30 @@ namespace Herta.Utils.HertaWebsocket
             this.parameters = parameters;
         }
 
+        public bool IsConnected()
+        {
+            // 如果状态为 Connected, Communicating, Idle 则认为是连接正常
+            return _state == WebSocketState.Connected || _state == WebSocketState.Communicating || _state == WebSocketState.Idle;
+        }
+
+        public bool IsError()
+        {
+            // 如果状态为 Error 则认为是连接异常
+            return _state == WebSocketState.Error;
+        }
+
+        public bool IsClosing()
+        {
+            // 如果状态为 Closing 则认为是连接正在关闭
+            return _state == WebSocketState.Closing;
+        }
+
+        public bool IsClosed()
+        {
+            // 如果状态为 Closed 则认为是连接已关闭
+            return _state == WebSocketState.Closed;
+        }
+
         public async Task SendAsync(byte[] data, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
         {
             await ExecuteWithStateCheck(async () =>
