@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 using Herta.Utils.Logger;
 using NLog;
 using Herta.Decorators.Websocket;
@@ -31,6 +32,7 @@ namespace Herta.Middleware.Websocket
         private readonly RequestDelegate _next;
         private readonly IActionDescriptorCollectionProvider _actionDescriptorCollectionProvider;
         private readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(WebSocketMiddleware));
+        private static readonly ConcurrentDictionary<string, Regex> RegexCache = new ConcurrentDictionary<string, Regex>();
 
         public WebSocketMiddleware(RequestDelegate next, IActionDescriptorCollectionProvider actionDescriptorCollectionProvider)
         {
@@ -64,8 +66,7 @@ namespace Herta.Middleware.Websocket
                             var fullWebsocketPath = $"/{controllerRoute.Trim('/')}/{websocketPath.Trim('/')}".Replace("//", "/");
 
                             // 解析参数化路径
-                            var regexPattern = RegexPatternFromTemplate(fullWebsocketPath);
-                            var regex = new Regex(regexPattern);
+                            var regex = GetRegex(fullWebsocketPath);
                             var match = regex.Match(requestPath ?? "");
 
                             if (match.Success)
@@ -110,8 +111,12 @@ namespace Herta.Middleware.Websocket
 
         private string RegexPatternFromTemplate(string template)
         {
-            // 将模板中的动态部分替换为正则表达式
             return Regex.Replace(template, @"\{(\w+)\}", "(?<$1>[^/]+)");
+        }
+
+        private Regex GetRegex(string template)
+        {
+            return RegexCache.GetOrAdd(template, new Regex(RegexPatternFromTemplate(template)));
         }
     }
 }

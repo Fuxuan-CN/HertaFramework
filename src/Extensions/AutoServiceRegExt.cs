@@ -5,6 +5,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Herta.Decorators.Services;
 using Herta.Utils.Logger;
+using NLog;
 
 namespace Herta.Extensions.AutoServiceRegExt
 {
@@ -32,24 +33,12 @@ namespace Herta.Extensions.AutoServiceRegExt
                     var serviceAttribute = type.GetCustomAttribute<ServiceAttribute>();
                     if (serviceAttribute != null)
                     {
+                        // 注册普通接口
                         var interfaces = type.GetInterfaces();
                         foreach (var @interface in interfaces)
                         {
                             _logger.Trace($"Registering service: {@interface.Name} -> {type.Name} (Lifetime: {serviceAttribute.Lifetime})");
-                            switch (serviceAttribute.Lifetime)
-                            {
-                                case ServiceLifetime.Scoped:
-                                    services.AddScoped(@interface, type);
-                                    break;
-                                case ServiceLifetime.Singleton:
-                                    services.AddSingleton(@interface, type);
-                                    break;
-                                case ServiceLifetime.Transient:
-                                    services.AddTransient(@interface, type);
-                                    break;
-                                default:
-                                    throw new ArgumentOutOfRangeException(nameof(serviceAttribute.Lifetime), serviceAttribute.Lifetime, null);
-                            }
+                            RegisterService(services, @interface, type, serviceAttribute);
                         }
 
                         // 处理泛型接口
@@ -63,20 +52,7 @@ namespace Herta.Extensions.AutoServiceRegExt
                             var concreteType = type;
                             var interfaceType = genericInterface.MakeGenericType(concreteType.GetGenericArguments());
                             _logger.Trace($"Registering generic service: {interfaceType.Name} -> {concreteType.Name} (Lifetime: {serviceAttribute.Lifetime})");
-                            switch (serviceAttribute.Lifetime)
-                            {
-                                case ServiceLifetime.Scoped:
-                                    services.AddScoped(interfaceType, concreteType);
-                                    break;
-                                case ServiceLifetime.Singleton:
-                                    services.AddSingleton(interfaceType, concreteType);
-                                    break;
-                                case ServiceLifetime.Transient:
-                                    services.AddTransient(interfaceType, concreteType);
-                                    break;
-                                default:
-                                    throw new ArgumentOutOfRangeException(nameof(serviceAttribute.Lifetime), serviceAttribute.Lifetime, null);
-                            }
+                            RegisterService(services, interfaceType, concreteType, serviceAttribute);
                         }
                     }
                 }
@@ -87,6 +63,24 @@ namespace Herta.Extensions.AutoServiceRegExt
             }
 
             return services;
+        }
+
+        private static void RegisterService(IServiceCollection services, Type serviceType, Type implementationType, ServiceAttribute serviceAttribute)
+        {
+            switch (serviceAttribute.Lifetime)
+            {
+                case ServiceLifetime.Scoped:
+                    services.AddScoped(serviceType, implementationType);
+                    break;
+                case ServiceLifetime.Singleton:
+                    services.AddSingleton(serviceType, implementationType);
+                    break;
+                case ServiceLifetime.Transient:
+                    services.AddTransient(serviceType, implementationType);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(serviceAttribute.Lifetime), serviceAttribute.Lifetime, null);
+            }
         }
     }
 }
