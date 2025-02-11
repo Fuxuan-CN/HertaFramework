@@ -31,28 +31,37 @@ namespace Herta.Utils.HertaWebsocket
             this.parameters = parameters;
         }
 
+        private T ReadStateWithLock<T>(Func<WebsocketState, T> stateCheckFunc)
+        {
+            // 使用锁，确保状态检查和状态修改是原子操作
+            lock (_stateLock)
+            {
+                return stateCheckFunc(_state);
+            }
+        }
+
         public bool IsConnected()
         {
             // 如果状态为 Connected, Communicating, Idle 则认为是连接正常
-            return _state == WebSocketState.Connected || _state == WebSocketState.Communicating || _state == WebSocketState.Idle;
+            return ReadStateWithLock(state => state == WebsocketState.Connected || state == WebsocketState.Communicating || state == WebsocketState.Idle);
         }
 
         public bool IsError()
         {
             // 如果状态为 Error 则认为是连接异常
-            return _state == WebSocketState.Error;
+            return ReadStateWithLock(state => state == WebsocketState.Error);
         }
 
         public bool IsClosing()
         {
             // 如果状态为 Closing 则认为是连接正在关闭
-            return _state == WebSocketState.Closing;
+            return ReadStateWithLock(state => state == WebsocketState.Closing);
         }
 
         public bool IsClosed()
         {
             // 如果状态为 Closed 则认为是连接已关闭
-            return _state == WebSocketState.Closed;
+            return ReadStateWithLock(state => state == WebsocketState.Closed);
         }
 
         public async Task SendAsync(byte[] data, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
