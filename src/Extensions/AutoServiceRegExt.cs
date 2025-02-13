@@ -13,13 +13,11 @@ namespace Herta.Extensions.AutoServiceRegExt
     {
         private static readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(ServiceCollectionExtensions));
 
-        // 默认扫描当前程序集
         public static IServiceCollection AutoRegisterServices(this IServiceCollection services)
         {
             return AutoRegisterServices(services, Assembly.GetExecutingAssembly());
         }
 
-        // 允许用户指定要扫描的程序集
         public static IServiceCollection AutoRegisterServices(this IServiceCollection services, params Assembly[] assemblies)
         {
             var serviceTypes = assemblies.SelectMany(a => a.GetTypes())
@@ -33,26 +31,15 @@ namespace Herta.Extensions.AutoServiceRegExt
                     var serviceAttribute = type.GetCustomAttribute<ServiceAttribute>();
                     if (serviceAttribute != null)
                     {
-                        // 注册普通接口
-                        var interfaces = type.GetInterfaces();
-                        foreach (var @interface in interfaces)
-                        {
-                            _logger.Trace($"Registering service: {@interface.Name} -> {type.Name} (Lifetime: {serviceAttribute.Lifetime})");
-                            RegisterService(services, @interface, type, serviceAttribute);
-                        }
-
-                        // 处理泛型接口
-                        var genericInterfaces = type.GetInterfaces()
+                        var interfaces = type.GetInterfaces().ToList();
+                        interfaces.AddRange(type.GetInterfaces()
                             .Where(i => i.IsGenericTypeDefinition || i.ContainsGenericParameters)
                             .Select(i => i.GetGenericTypeDefinition())
-                            .Distinct();
+                            .Distinct());
 
-                        foreach (var genericInterface in genericInterfaces)
+                        foreach (var @interface in interfaces)
                         {
-                            var concreteType = type;
-                            var interfaceType = genericInterface.MakeGenericType(concreteType.GetGenericArguments());
-                            _logger.Trace($"Registering generic service: {interfaceType.Name} -> {concreteType.Name} (Lifetime: {serviceAttribute.Lifetime})");
-                            RegisterService(services, interfaceType, concreteType, serviceAttribute);
+                            RegisterService(services, @interface, type, serviceAttribute);
                         }
                     }
                 }
@@ -81,6 +68,8 @@ namespace Herta.Extensions.AutoServiceRegExt
                 default:
                     throw new ArgumentOutOfRangeException(nameof(serviceAttribute.Lifetime), serviceAttribute.Lifetime, null);
             }
+
+            _logger.Trace($"{serviceType.Name} <=> {implementationType.Name} registered with lifetime {serviceAttribute.Lifetime}.");
         }
     }
 }
