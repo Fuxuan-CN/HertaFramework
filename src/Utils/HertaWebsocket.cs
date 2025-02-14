@@ -12,7 +12,7 @@ using NLog;
 
 namespace Herta.Utils.HertaWebsocket
 {
-    public class HertaWebsocket : IDisposable
+    public sealed class HertaWebsocket : IDisposable
     {
         private readonly WebSocket _webSocket;
         private readonly ArraySegment<byte> _buffer;
@@ -20,7 +20,7 @@ namespace Herta.Utils.HertaWebsocket
         private WebsocketState _state = WebsocketState.Closed; // 初始状态为 Closed
         private readonly Guid _id = Guid.NewGuid();
         private readonly object _stateLock = new object();
-        public Dictionary<string, string?> parameters { get; set; }
+        public Dictionary<string, string?> Parameters { get; set; }
 
         public HertaWebsocket(WebSocket webSocket, Dictionary<string, string?> parameters)
         {
@@ -28,7 +28,7 @@ namespace Herta.Utils.HertaWebsocket
             _buffer = new ArraySegment<byte>(new byte[8192]);
             _state = WebsocketState.Connected; // 连接建立后状态为 Connected
             _logger.Trace($"Websocket created. Id: {_id}");
-            this.parameters = parameters;
+            Parameters = parameters;
         }
 
         private T ReadStateWithLock<T>(Func<WebsocketState, T> stateCheckFunc)

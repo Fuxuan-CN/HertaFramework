@@ -25,7 +25,7 @@ namespace HerTa.Controllers.HelloController
         public async Task TestWebsocket(HertaWebsocket websocket)
         {
             log.Info("HelloController.TestWebsocket() called");
-            await websocket.SendTextAsync($"Hello, world!, from {websocket.parameters["id"]}");
+            await websocket.SendTextAsync($"Hello, world!, from {websocket.Parameters["id"]}");
             await websocket.CloseAsync(1000, "Goodbye!");
         }
     }

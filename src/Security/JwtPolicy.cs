@@ -1,5 +1,5 @@
 using Herta.Exceptions.HttpException;
-using Herta.Decorators.Authorize;
+using Herta.Decorators.AuthorizeRegister;
 using Herta.Security.Requirements.JwtRequire;
 using Herta.Interfaces.IAuthService;
 using System.Threading.Tasks;

@@ -30,8 +30,11 @@ namespace Herta.Extensions.AutoMiddlewareRegExt
 
             foreach (var middlewareType in middlewareTypes)
             {
-                _logger.Trace($"Registering middleware {middlewareType.Name}");
-                app.UseMiddleware(middlewareType);
+                var middlewareAttribute = middlewareType.GetCustomAttribute<MiddlewareAttribute>();
+
+                _logger.Trace($"Registering middleware {middlewareType.Name} with order {middlewareAttribute!.Order!}");
+
+                app.UseMiddleware(middlewareType!);
             }
 
             return app;

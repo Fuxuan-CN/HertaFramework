@@ -3,7 +3,7 @@ using System.Linq;
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
-using Herta.Decorators.Authorize;
+using Herta.Decorators.AuthorizeRegister;
 using Herta.Utils.Logger;
 using NLog;
 

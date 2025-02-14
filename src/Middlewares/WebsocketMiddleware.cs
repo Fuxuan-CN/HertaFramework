@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Authorization;
 using System;
 using System.IO;
 using System.Net.WebSockets;
@@ -56,6 +57,7 @@ namespace Herta.Middleware.Websocket
                     {
                         var methodInfo = controllerActionDescriptor.MethodInfo;
                         var websocketAttribute = methodInfo.GetCustomAttribute<WebsocketAttribute>();
+
                         if (websocketAttribute != null)
                         {
                             // 获取控制器的根路径
@@ -111,7 +113,8 @@ namespace Herta.Middleware.Websocket
 
         private string RegexPatternFromTemplate(string template)
         {
-            return Regex.Replace(template, @"\{(\w+)\}", "(?<$1>[^/]+)");
+            // 防止正则表达式注入攻击
+            return Regex.Replace(template, @"\{([a-zA-Z0-9_]+)\}", "(?<$1>[^/]+)");
         }
 
         private Regex GetRegex(string template)

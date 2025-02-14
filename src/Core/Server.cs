@@ -31,9 +31,9 @@ namespace Herta.Core.Server
         private bool _needAuthentication = false;
         public static NLog.ILogger _logger = LoggerManager.GetLogger(typeof(HertaApiServer));
 
-        public HertaApiServer(bool debug = false, bool needAuthentication = false)
+        public HertaApiServer(bool debug = false, bool needAuth = false)
         {
-            _needAuthentication = needAuthentication;
+            _needAuthentication = needAuth;
             _builder = WebApplication.CreateBuilder(
                 new WebApplicationOptions
                 {
