@@ -5,7 +5,7 @@ using Herta.Responses.Response;
 using Herta.Decorators.Websocket;
 using Herta.Utils.HertaWebsocket;
 using Herta.Decorators.Security;
-using Herta.Security.MiddlewarePolicy.ExampleSecurityPolicy;
+using Herta.Security.MiddlewarePolicy.SpeedLimitSecurityPolicy;
 
 namespace HerTa.Controllers.HelloController
 {
@@ -17,7 +17,6 @@ namespace HerTa.Controllers.HelloController
         private static readonly NLog.ILogger log = LoggerManager.GetLogger(typeof(HelloController));
 
         [HttpGet]
-        [SecurityProtect(true, typeof(ExampleSecurityPolicy))]
         public Response TestResponse()
         {
             log.Info("HelloController.TestResponse() called");

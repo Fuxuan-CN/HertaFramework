@@ -20,5 +20,15 @@ namespace Herta.Security.MiddlewarePolicy.ExampleSecurityPolicy
             // 只是返回true，用于测试
             return Task.FromResult(true);
         }
+
+        public Task<string?> GetBlockedReason()
+        {
+            return Task.FromResult<string?>(null);
+        }
+
+        public Task<int> GetStatusCode()
+        {
+            return Task.FromResult(403);
+        }
     }
 }

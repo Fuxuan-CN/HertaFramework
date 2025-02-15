@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Threading;
 using System.Threading.Tasks;
 using Herta.Interfaces.ISecurityPolicy;
 using Microsoft.AspNetCore.Http;
@@ -9,62 +8,52 @@ namespace Herta.Security.MiddlewarePolicy.SpeedLimitSecurityPolicy
 {
     public class SpeedLimitSecurityPolicy : ISecurityPolicy
     {
-        private static readonly ConcurrentDictionary<string, int> Blocked = new ConcurrentDictionary<string, int>();
-        private static readonly ConcurrentDictionary<string, int> RequestFrequency = new ConcurrentDictionary<string, int>();
-        private static readonly int MaxReqPerSec = 1000; // 每秒钟允许的最大请求数
-        private static readonly TimeSpan RequestInterval = TimeSpan.FromSeconds(1);
+        private readonly ConcurrentDictionary<string, Queue<DateTime>> _requestTimestamps = new();
+        private readonly int _maxRequestsPerSecond; // 每秒最大请求数
+        private readonly TimeSpan _timeWindow = TimeSpan.FromSeconds(1); // 时间窗口为1秒
 
-        public SpeedLimitSecurityPolicy()
+        public SpeedLimitSecurityPolicy(int maxRequestsPerSecond = 100)
         {
-            // 启动后台任务清理请求计数
-            _ = CleanUpRequestFrequencyAsync();
+            _maxRequestsPerSecond = maxRequestsPerSecond;
+        }
+
+        public Task<int> GetStatusCode()
+        {
+            return Task.FromResult(429); // Too Many Requests
+        }
+
+        public Task<string?> GetBlockedReason()
+        {
+            return Task.FromResult<string?>($"sorry, but you have exceeded the maximum number of requests per second. limit is : {_maxRequestsPerSecond} per {_timeWindow.TotalSeconds} seconds.");
         }
 
         public Task<bool> IsRequestAllowed(HttpContext context)
         {
-            var ip = context.Connection.RemoteIpAddress.ToString()!;
-            
-            // 检查 IP 是否在封禁列表中
-            if (Blocked.ContainsKey(ip))
+            var ip = context.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+            var now = DateTime.UtcNow;
+
+            // 获取或初始化该IP的请求时间戳队列
+            if (!_requestTimestamps.TryGetValue(ip, out var timestamps))
             {
-                return Task.FromResult(false);
+                timestamps = new Queue<DateTime>();
+                _requestTimestamps[ip] = timestamps;
             }
 
-            // 检查请求频率
-            if (RequestFrequency.TryGetValue(ip, out int requestCount))
+            // 清理超出时间窗口的旧时间戳
+            while (timestamps.Count > 0 && timestamps.Peek() < now.Subtract(_timeWindow))
             {
-                if (requestCount >= MaxReqPerSec)
-                {
-                    // 如果请求频率超过限制，封禁 IP
-                    Blocked[ip] = 1;
-                    return Task.FromResult(false);
-                }
-                else
-                {
-                    // 增加请求计数
-                    RequestFrequency[ip] = requestCount + 1;
-                }
-            }
-            else
-            {
-                // 初始化请求计数
-                RequestFrequency[ip] = 1;
+                timestamps.Dequeue();
             }
 
-            return Task.FromResult(true);
-        }
-
-        private async Task CleanUpRequestFrequencyAsync()
-        {
-            while (true)
+            // 检查当前请求是否超出限制
+            if (timestamps.Count >= _maxRequestsPerSecond)
             {
-                await Task.Delay(RequestInterval);
-                var keys = RequestFrequency.Keys.ToArray();
-                foreach (var key in keys)
-                {
-                    RequestFrequency.TryRemove(key, out _);
-                }
+                return Task.FromResult(false); // 超出限制，拒绝请求
             }
+
+            // 添加当前请求的时间戳
+            timestamps.Enqueue(now);
+            return Task.FromResult(true); // 请求通过
         }
     }
 }

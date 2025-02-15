@@ -56,7 +56,7 @@ namespace Herta.Middlewares.SecurityMiddleware
 
             if (actionDescriptor != null)
             {
-                _logger.Trace($"Found action descriptor for {actionDescriptor.ActionName} in {actionDescriptor.ControllerName}.");
+                _logger.Debug($"Found action descriptor for {actionDescriptor.ActionName} in {actionDescriptor.ControllerName}.");
                 var methodInfo = actionDescriptor.MethodInfo;
                 var controllerType = actionDescriptor.ControllerTypeInfo.AsType();
                 var methodAttr = methodInfo.GetCustomAttributes<SecurityProtectAttribute>(false).FirstOrDefault();
@@ -81,12 +81,12 @@ namespace Herta.Middlewares.SecurityMiddleware
             }
             else
             {
-                _logger.Trace($"No action descriptor found for {requestPath}, using default policy.");
+                _logger.Debug($"No action descriptor found for {requestPath}, using default policy.");
             }
 
             if (!enableSecurity)
             {
-                _logger.Trace($"Security is disabled, without checking.");
+                _logger.Debug($"Security is disabled, without checking.");
                 await _next(context);
                 return;
             }
@@ -95,13 +95,14 @@ namespace Herta.Middlewares.SecurityMiddleware
             var isAllowed = await policy.IsRequestAllowed(context);
             if (!isAllowed)
             {
-                _logger.Trace($"Access denied for {ipAddr}.");
-                context.Response.StatusCode = 403;
-                await context.Response.WriteAsync("Access denied due to suspicious activity.");
+                _logger.Debug($"Access denied for {ipAddr}.");
+                context.Response.StatusCode = await policy.GetStatusCode();
+                var reason = await policy.GetBlockedReason();
+                await context.Response.WriteAsync(reason);
                 return;
             }
 
-            _logger.Trace($"Access granted for {ipAddr}.");
+            _logger.Debug($"Access granted for {ipAddr}.");
             await _next(context);
         }
 
