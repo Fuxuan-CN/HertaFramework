@@ -4,6 +4,8 @@ using Herta.Utils.Logger;
 using Herta.Responses.Response;
 using Herta.Decorators.Websocket;
 using Herta.Utils.HertaWebsocket;
+using Herta.Decorators.Security;
+using Herta.Security.MiddlewarePolicy.ExampleSecurityPolicy;
 
 namespace HerTa.Controllers.HelloController
 {
@@ -22,6 +24,7 @@ namespace HerTa.Controllers.HelloController
         }
 
         [Websocket("ws/{id}")]
+        [SecurityProtect(true, typeof(ExampleSecurityPolicy))]
         public async Task TestWebsocket(HertaWebsocket websocket)
         {
             log.Info("HelloController.TestWebsocket() called");

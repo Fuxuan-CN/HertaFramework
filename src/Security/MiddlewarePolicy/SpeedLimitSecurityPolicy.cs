@@ -2,18 +2,15 @@ using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Herta.Interfaces.ISecurityPolicy;
-using Herta.Decorators.Services;
 
 namespace Herta.Security.MiddlewarePolicy.SpeedLimitSecurityPolicy
 {
-    [Service(ServiceLifetime.Singleton)]
     public class SpeedLimitSecurityPolicy : ISecurityPolicy
     {
         private static readonly ConcurrentDictionary<string, int> Blocked = new ConcurrentDictionary<string, int>();
         private static readonly ConcurrentDictionary<string, int> RequestFrequency = new ConcurrentDictionary<string, int>();
-        private static readonly int MaxReqPerSec = 100; // 每秒钟允许的最大请求数
+        private static readonly int MaxReqPerSec = 1000; // 每秒钟允许的最大请求数
         private static readonly TimeSpan RequestInterval = TimeSpan.FromSeconds(1);
 
         public SpeedLimitSecurityPolicy()
