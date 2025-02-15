@@ -66,7 +66,7 @@ namespace Herta.Middlewares.SecurityMiddleware
                 {
                     enableSecurity = methodAttr.EnableSecurity;
                     policy = methodAttr.PolicyType != null ? 
-                             (ISecurityPolicy)context.RequestServices.GetService(methodAttr.PolicyType)! : 
+                             (ISecurityPolicy)methodAttr.PolicyType.GetConstructor(Type.EmptyTypes)!.Invoke(null) : 
                              _defaultSecurityPolicy;
                     _logger.Trace($"Security is enabled for method {methodInfo.Name} using policy {policy.GetType().Name}.");
                 }
@@ -74,7 +74,7 @@ namespace Herta.Middlewares.SecurityMiddleware
                 {
                     enableSecurity = controllerAttr.EnableSecurity;
                     policy = controllerAttr.PolicyType != null ? 
-                             (ISecurityPolicy)context.RequestServices.GetService(controllerAttr.PolicyType)! : 
+                             (ISecurityPolicy)methodAttr!.PolicyType.GetConstructor(Type.EmptyTypes)!.Invoke(null)! : 
                              _defaultSecurityPolicy;
                     _logger.Trace($"Security is enabled for controller {controllerType.Name} using policy {policy.GetType().Name}.");
                 }
@@ -92,7 +92,7 @@ namespace Herta.Middlewares.SecurityMiddleware
             }
 
             _logger.Trace($"Checking access for {ipAddr} using policy {policy.GetType().Name}.");
-            var isAllowed = await policy.IsRequestAllowed(ipAddr);
+            var isAllowed = await policy.IsRequestAllowed(context);
             if (!isAllowed)
             {
                 _logger.Trace($"Access denied for {ipAddr}.");
@@ -107,14 +107,12 @@ namespace Herta.Middlewares.SecurityMiddleware
 
         private bool IsActionMatch(ControllerActionDescriptor actionDescriptor, string requestPath)
         {
-            // 获取控制器的路由模板
-            var controllerRoute = actionDescriptor.AttributeRouteInfo?.Template ?? "";
             // 获取动作的路由模板
             var actionRoute = actionDescriptor.AttributeRouteInfo?.Template ?? actionDescriptor.ActionName;
 
             // 拼接完整的路由模板
-            var fullRouteTemplate = $"/{controllerRoute.Trim('/')}/{actionRoute.Trim('/')}".Replace("//", "/");
-
+            var fullRouteTemplate = $"/{actionRoute.Trim('/')}".Replace("//", "/");
+            _logger.Trace($"matching {requestPath} with {fullRouteTemplate}.");
             // 使用 RouteCacheMatcher 匹配请求路径和路由模板
             return RouteCacheMatcher.IsPathMatch(requestPath, fullRouteTemplate, out _);
         }

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Herta.Interfaces.ISecurityPolicy;
+using Microsoft.AspNetCore.Http;
 
 namespace Herta.Security.MiddlewarePolicy.SpeedLimitSecurityPolicy
 {
@@ -19,8 +20,10 @@ namespace Herta.Security.MiddlewarePolicy.SpeedLimitSecurityPolicy
             _ = CleanUpRequestFrequencyAsync();
         }
 
-        public Task<bool> IsRequestAllowed(string ip)
+        public Task<bool> IsRequestAllowed(HttpContext context)
         {
+            var ip = context.Connection.RemoteIpAddress.ToString()!;
+            
             // 检查 IP 是否在封禁列表中
             if (Blocked.ContainsKey(ip))
             {

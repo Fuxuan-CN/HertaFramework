@@ -17,6 +17,7 @@ namespace HerTa.Controllers.HelloController
         private static readonly NLog.ILogger log = LoggerManager.GetLogger(typeof(HelloController));
 
         [HttpGet]
+        [SecurityProtect(true, typeof(ExampleSecurityPolicy))]
         public Response TestResponse()
         {
             log.Info("HelloController.TestResponse() called");
@@ -24,7 +25,6 @@ namespace HerTa.Controllers.HelloController
         }
 
         [Websocket("ws/{id}")]
-        [SecurityProtect(true, typeof(ExampleSecurityPolicy))]
         public async Task TestWebsocket(HertaWebsocket websocket)
         {
             log.Info("HelloController.TestWebsocket() called");

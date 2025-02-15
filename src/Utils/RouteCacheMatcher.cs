@@ -18,8 +18,8 @@ namespace Herta.Utils.RouteCacheMatcher
         private static Regex CreateRegexFromTemplate(string template)
         {
             // 防止正则表达式注入攻击，将路由参数（如 {id}）转换为捕获组
-            string pattern = Regex.Replace(template, @"\{([a-zA-Z0-9_]+)\}", "(?<$1>[^/]+)");
-            return new Regex($"^{pattern}$"); // 添加锚点确保完整匹配
+            string pattern = Regex.Replace(template, @"\{([a-z0-9_]+)\}", "(?<$1>[^/]+)");
+            return new Regex($"^{pattern}$", RegexOptions.Compiled | RegexOptions.IgnoreCase); // 添加锚点确保完整匹配
         }
 
         // 检查请求路径是否匹配路由模板
