@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Newtonsoft.Json;
+using System.Text.Json;
 
 namespace Herta.Utils.ObjectBuilder
 {
@@ -58,7 +58,7 @@ namespace Herta.Utils.ObjectBuilder
 
         public static T BuildFromJson<T>(string json) where T : new()
         {
-            var properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
+            var properties = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
             return Build<T>(properties!);
         }
 
@@ -81,7 +81,7 @@ namespace Herta.Utils.ObjectBuilder
             obj = new T();
             try
             {
-                var properties = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
+                var properties = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
                 return TryBuild(properties!, out obj);
             }
             catch (Exception)
