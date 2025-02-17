@@ -21,6 +21,7 @@ namespace Herta.Middlewares.SecurityMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly ISecurityPolicy _defaultSecurityPolicy = new ExampleSecurityPolicy();
+        private ISecurityPolicy? _currentPolicy;
         private readonly IActionDescriptorCollectionProvider _actionDescriptorProvider;
         private static readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(SecurityMiddleware));
 
@@ -64,15 +65,15 @@ namespace Herta.Middlewares.SecurityMiddleware
 
                 if (methodAttr != null)
                 {
-                    _logger.Trace("method attr found, checking security.");
                     enableSecurity = methodAttr.EnableSecurity;
-                    policy = MakePolicyHandler(methodAttr.PolicyType);
+                    _currentPolicy = methodAttr.PolicyType != null ? Activator.CreateInstance(methodAttr.PolicyType) as ISecurityPolicy : _defaultSecurityPolicy;
+                    _logger.Trace($"Security is enabled for method {methodInfo.Name} using policy {methodAttr.PolicyType.Name}.");
                 }
                 else if (controllerAttr != null)
                 {
-                    _logger.Trace("controller attr found, checking security.");
                     enableSecurity = controllerAttr.EnableSecurity;
-                    policy = MakePolicyHandler(controllerAttr.PolicyType);
+                    _currentPolicy = controllerAttr.PolicyType != null ? Activator.CreateInstance(controllerAttr.PolicyType) as ISecurityPolicy : _defaultSecurityPolicy;
+                    _logger.Trace($"Security is enabled for controller {controllerType.Name} using policy {methodAttr.PolicyType.Name}.");
                 }
             }
             else
@@ -88,53 +89,19 @@ namespace Herta.Middlewares.SecurityMiddleware
             }
 
             _logger.Trace($"Checking access for {ipAddr} using policy {policy.GetType().Name}.");
-            var isAllowed = await policy.IsRequestAllowed(context);
+            var UsedPolicy = _currentPolicy ?? _defaultSecurityPolicy;
+            var isAllowed = await UsedPolicy.IsRequestAllowed(context);
             if (!isAllowed)
             {
                 _logger.Debug($"Access denied for {ipAddr}.");
-                context.Response.StatusCode = await policy.GetStatusCode();
-                var reason = await policy.GetBlockedReason();
+                context.Response.StatusCode = await UsedPolicy.GetStatusCode();
+                var reason = await UsedPolicy.GetBlockedReason();
                 await context.Response.WriteAsync(reason ?? "Access denied.");
                 return;
             }
 
             _logger.Debug($"Access granted for {ipAddr}.");
             await _next(context);
-        }
-
-        private ISecurityPolicy MakePolicyHandler(Type PolicyType)
-        {
-            // 尝试获取无参构造函数
-            var constructorInfo = PolicyType.GetConstructor(Type.EmptyTypes);
-            ISecurityPolicy? _policy = null;
-
-            if (constructorInfo != null)
-            {
-                // 如果存在无参构造函数，则使用它来创建实例
-                _policy = (ISecurityPolicy)constructorInfo.Invoke(null);
-            }
-            else
-            {
-                // 没有无参构造函数，尝试获取有参构造函数
-                constructorInfo = PolicyType.GetConstructors().FirstOrDefault();
-                if (constructorInfo != null)
-                {
-                    // 获取有参构造函数的参数类型和默认值
-                    var parameters = constructorInfo.GetParameters();
-                    var parameterValues = new object[parameters.Length];
-
-                    foreach (var parameter in parameters)
-                    {
-                        parameterValues[parameter.Position] = parameter.DefaultValue ?? new object();
-                    }
-
-                    // 使用有参构造函数创建实例
-                    _policy = (ISecurityPolicy)constructorInfo.Invoke(parameterValues);
-                }
-            }
-
-            // 如果无法创建实例，则使用默认策略
-            return _policy ?? _defaultSecurityPolicy;
         }
 
         private bool IsActionMatch(ControllerActionDescriptor actionDescriptor, string requestPath)
