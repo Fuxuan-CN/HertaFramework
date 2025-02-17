@@ -64,19 +64,15 @@ namespace Herta.Middlewares.SecurityMiddleware
 
                 if (methodAttr != null)
                 {
+                    _logger.Trace("method attr found, checking security.");
                     enableSecurity = methodAttr.EnableSecurity;
-                    policy = methodAttr.PolicyType != null ? 
-                             (ISecurityPolicy)methodAttr.PolicyType.GetConstructor(Type.EmptyTypes)!.Invoke(null) : 
-                             _defaultSecurityPolicy;
-                    _logger.Trace($"Security is enabled for method {methodInfo.Name} using policy {policy.GetType().Name}.");
+                    policy = MakePolicyHandler(methodAttr.PolicyType);
                 }
                 else if (controllerAttr != null)
                 {
+                    _logger.Trace("controller attr found, checking security.");
                     enableSecurity = controllerAttr.EnableSecurity;
-                    policy = controllerAttr.PolicyType != null ? 
-                             (ISecurityPolicy)methodAttr!.PolicyType.GetConstructor(Type.EmptyTypes)!.Invoke(null)! : 
-                             _defaultSecurityPolicy;
-                    _logger.Trace($"Security is enabled for controller {controllerType.Name} using policy {policy.GetType().Name}.");
+                    policy = MakePolicyHandler(controllerAttr.PolicyType);
                 }
             }
             else
@@ -104,6 +100,41 @@ namespace Herta.Middlewares.SecurityMiddleware
 
             _logger.Debug($"Access granted for {ipAddr}.");
             await _next(context);
+        }
+
+        private ISecurityPolicy MakePolicyHandler(Type PolicyType)
+        {
+            // 尝试获取无参构造函数
+            var constructorInfo = PolicyType.GetConstructor(Type.EmptyTypes);
+            ISecurityPolicy? _policy = null;
+
+            if (constructorInfo != null)
+            {
+                // 如果存在无参构造函数，则使用它来创建实例
+                _policy = (ISecurityPolicy)constructorInfo.Invoke(null);
+            }
+            else
+            {
+                // 没有无参构造函数，尝试获取有参构造函数
+                constructorInfo = PolicyType.GetConstructors().FirstOrDefault();
+                if (constructorInfo != null)
+                {
+                    // 获取有参构造函数的参数类型和默认值
+                    var parameters = constructorInfo.GetParameters();
+                    var parameterValues = new object[parameters.Length];
+
+                    foreach (var parameter in parameters)
+                    {
+                        parameterValues[parameter.Position] = parameter.DefaultValue ?? new object();
+                    }
+
+                    // 使用有参构造函数创建实例
+                    _policy = (ISecurityPolicy)constructorInfo.Invoke(parameterValues);
+                }
+            }
+
+            // 如果无法创建实例，则使用默认策略
+            return _policy ?? _defaultSecurityPolicy;
         }
 
         private bool IsActionMatch(ControllerActionDescriptor actionDescriptor, string requestPath)
