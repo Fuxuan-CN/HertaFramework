@@ -2,11 +2,11 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 using Herta.Decorators.Security;
 using Herta.Decorators.Middleware;
 using Herta.Interfaces.ISecurityPolicy;
 using Herta.Utils.Logger;
-using Herta.Utils.RouteCacheMatcher;
 using NLog;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +21,7 @@ namespace Herta.Middlewares.SecurityMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly ISecurityPolicy _defaultSecurityPolicy = new ExampleSecurityPolicy();
-        private ISecurityPolicy? _currentPolicy;
+        private readonly ConcurrentDictionary<string, ISecurityPolicy> _policyCache = new ConcurrentDictionary<string, ISecurityPolicy>();
         private readonly IActionDescriptorCollectionProvider _actionDescriptorProvider;
         private static readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(SecurityMiddleware));
 
@@ -44,76 +44,90 @@ namespace Herta.Middlewares.SecurityMiddleware
             var ipAddr = context.Connection.RemoteIpAddress.ToString();
             _logger.Trace($"Connection request from {ipAddr}.");
 
-            // 获取请求路径
-            var requestPath = context.Request.Path.Value;
+            // 获取当前请求的控制器和动作描述符
+            var endpoint = context.GetEndpoint();
+            var actionDescriptor = endpoint?.Metadata.GetMetadata<ControllerActionDescriptor>();
 
-            // 查找匹配的控制器和动作描述符
-            var actionDescriptor = _actionDescriptorProvider.ActionDescriptors.Items
-                .OfType<ControllerActionDescriptor>()
-                .FirstOrDefault(x => IsActionMatch(x, requestPath!));
-
-            var enableSecurity = true;
-            ISecurityPolicy policy = _defaultSecurityPolicy;
-
-            if (actionDescriptor != null)
+            if (actionDescriptor == null)
             {
-                _logger.Debug($"Found action descriptor for {actionDescriptor.ActionName} in {actionDescriptor.ControllerName}.");
-                var methodInfo = actionDescriptor.MethodInfo;
-                var controllerType = actionDescriptor.ControllerTypeInfo.AsType();
-                var methodAttr = methodInfo.GetCustomAttributes<SecurityProtectAttribute>(false).FirstOrDefault();
-                var controllerAttr = controllerType.GetCustomAttributes<SecurityProtectAttribute>(false).FirstOrDefault();
-
-                if (methodAttr != null)
-                {
-                    enableSecurity = methodAttr.EnableSecurity;
-                    _currentPolicy = methodAttr.PolicyType != null ? Activator.CreateInstance(methodAttr.PolicyType) as ISecurityPolicy : _defaultSecurityPolicy;
-                    _logger.Trace($"Security is enabled for method {methodInfo.Name} using policy {methodAttr.PolicyType.Name}.");
-                }
-                else if (controllerAttr != null)
-                {
-                    enableSecurity = controllerAttr.EnableSecurity;
-                    _currentPolicy = controllerAttr.PolicyType != null ? Activator.CreateInstance(controllerAttr.PolicyType) as ISecurityPolicy : _defaultSecurityPolicy;
-                    _logger.Trace($"Security is enabled for controller {controllerType.Name} using policy {methodAttr.PolicyType.Name}.");
-                }
-            }
-            else
-            {
-                _logger.Debug($"No action descriptor found for {requestPath}, using default policy.");
-            }
-
-            if (!enableSecurity)
-            {
-                _logger.Debug($"Security is disabled, without checking.");
-                await _next(context);
+                _logger.Debug("No controller action descriptor found, using default policy.");
+                await ApplySecurityPolicy(context, _defaultSecurityPolicy);
                 return;
             }
 
-            _logger.Trace($"Checking access for {ipAddr} using policy {policy.GetType().Name}.");
-            var UsedPolicy = _currentPolicy ?? _defaultSecurityPolicy;
-            var isAllowed = await UsedPolicy.IsRequestAllowed(context);
+            _logger.Debug($"Found action descriptor for {actionDescriptor.ActionName} in {actionDescriptor.ControllerName}.");
+
+            // 获取控制器和动作上的安全策略属性
+            var methodInfo = actionDescriptor.MethodInfo;
+            var controllerType = actionDescriptor.ControllerTypeInfo.AsType();
+            var methodAttr = methodInfo.GetCustomAttributes<SecurityProtectAttribute>(false).FirstOrDefault();
+            var controllerAttr = controllerType.GetCustomAttributes<SecurityProtectAttribute>(false).FirstOrDefault();
+
+            // 确定最终的安全策略
+            var policy = MakeOrGetPolicyHandler(actionDescriptor.ControllerName, actionDescriptor.ActionName, methodAttr, controllerAttr);
+
+            // 应用安全策略
+            await ApplySecurityPolicy(context, policy);
+        }
+
+        private ISecurityPolicy MakeOrGetPolicyHandler(string controllerName, string actionName, SecurityProtectAttribute? methodAttr, SecurityProtectAttribute? controllerAttr)
+        {
+            // 构造缓存键
+            var cacheKey = $"{controllerName}:{actionName}";
+
+            // 从缓存中获取策略实例
+            if (_policyCache.TryGetValue(cacheKey, out var policy))
+            {
+                return policy;
+            }
+
+            // 如果没有缓存，根据属性创建策略实例
+            policy = CreatePolicyInstance(methodAttr ?? controllerAttr);
+
+            // 将策略实例添加到缓存中
+            _policyCache.TryAdd(cacheKey, policy);
+            return policy;
+        }
+
+        private ISecurityPolicy CreatePolicyInstance(SecurityProtectAttribute? attr)
+        {
+            if (attr == null || attr.PolicyType == null)
+            {
+                return _defaultSecurityPolicy;
+            }
+
+            try
+            {
+                var policyInstance = Activator.CreateInstance(attr.PolicyType) as ISecurityPolicy;
+                if (policyInstance == null)
+                {
+                    throw new InvalidOperationException($"Failed to create instance of {attr.PolicyType.Name}");
+                }
+                return policyInstance;
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, $"Error creating policy instance for {attr.PolicyType.Name}: {ex.Message}, did you have a no-arg constructor?");
+                return _defaultSecurityPolicy;
+            }
+        }
+
+        private async Task ApplySecurityPolicy(HttpContext context, ISecurityPolicy policy)
+        {
+            _logger.Debug($"Checking access for {context.Connection.RemoteIpAddress} using policy {policy.GetType().Name}.");
+
+            var isAllowed = await policy.IsRequestAllowed(context);
             if (!isAllowed)
             {
-                _logger.Debug($"Access denied for {ipAddr}.");
-                context.Response.StatusCode = await UsedPolicy.GetStatusCode();
-                var reason = await UsedPolicy.GetBlockedReason();
+                _logger.Debug($"Access denied for {context.Connection.RemoteIpAddress}.");
+                context.Response.StatusCode = await policy.GetStatusCode();
+                var reason = await policy.GetBlockedReason();
                 await context.Response.WriteAsync(reason ?? "Access denied.");
                 return;
             }
 
-            _logger.Debug($"Access granted for {ipAddr}.");
+            _logger.Debug($"Access granted for {context.Connection.RemoteIpAddress}.");
             await _next(context);
-        }
-
-        private bool IsActionMatch(ControllerActionDescriptor actionDescriptor, string requestPath)
-        {
-            // 获取动作的路由模板
-            var actionRoute = actionDescriptor.AttributeRouteInfo?.Template ?? actionDescriptor.ActionName;
-
-            // 拼接完整的路由模板
-            var fullRouteTemplate = $"/{actionRoute.Trim('/')}".Replace("//", "/");
-            _logger.Trace($"matching {requestPath} with {fullRouteTemplate}.");
-            // 使用 RouteCacheMatcher 匹配请求路径和路由模板
-            return RouteCacheMatcher.IsPathMatch(requestPath, fullRouteTemplate, out _);
         }
     }
 }
