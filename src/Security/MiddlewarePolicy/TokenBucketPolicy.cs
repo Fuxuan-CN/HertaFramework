@@ -14,6 +14,13 @@ namespace Herta.Security.MiddlewarePolicy.TokenBucketPolicy
         private readonly int _rate; // 每秒生成的令牌数
         private readonly int _capacity; // 桶的容量
 
+
+        public TokenBucketPolicy()
+        {
+            _rate = 100;
+            _capacity = 200;
+        }
+        
         public TokenBucketPolicy(int rate = 100, int capacity = 200)
         {
             _rate = rate;
