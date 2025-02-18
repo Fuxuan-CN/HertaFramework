@@ -2,11 +2,11 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
 using Herta.Decorators.Security;
 using Herta.Decorators.Middleware;
 using Herta.Interfaces.ISecurityPolicy;
 using Herta.Utils.Logger;
+using Herta.Utils.MemoryCache;
 using NLog;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +21,7 @@ namespace Herta.Middlewares.SecurityMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly ISecurityPolicy _defaultSecurityPolicy = new ExampleSecurityPolicy();
-        private readonly ConcurrentDictionary<string, ISecurityPolicy> _policyCache = new ConcurrentDictionary<string, ISecurityPolicy>();
+        private readonly MemoryCache<string, ISecurityPolicy> _policyCache = new MemoryCache<string, ISecurityPolicy>();
         private readonly IActionDescriptorCollectionProvider _actionDescriptorProvider;
         private static readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(SecurityMiddleware));
 
@@ -64,19 +64,19 @@ namespace Herta.Middlewares.SecurityMiddleware
             var controllerAttr = controllerType.GetCustomAttributes<SecurityProtectAttribute>(false).FirstOrDefault();
 
             // 确定最终的安全策略
-            var policy = MakeOrGetPolicyHandler(actionDescriptor.ControllerName, actionDescriptor.ActionName, methodAttr, controllerAttr);
+            var policy = MakeOrGetPolicyHandler(actionDescriptor.ControllerName, actionDescriptor.ActionName, ipAddr, methodAttr, controllerAttr);
 
             // 应用安全策略
             await ApplySecurityPolicy(context, policy);
         }
 
-        private ISecurityPolicy MakeOrGetPolicyHandler(string controllerName, string actionName, SecurityProtectAttribute? methodAttr, SecurityProtectAttribute? controllerAttr)
+        private ISecurityPolicy MakeOrGetPolicyHandler(string controllerName, string actionName, string ipAddr, SecurityProtectAttribute? methodAttr, SecurityProtectAttribute? controllerAttr)
         {
             // 构造缓存键
-            var cacheKey = $"{controllerName}:{actionName}";
+            var cacheKey = $"{controllerName}:{actionName}:{ipAddr}";
 
             // 从缓存中获取策略实例
-            if (_policyCache.TryGetValue(cacheKey, out var policy))
+            if (_policyCache.TryGet(cacheKey, out var policy))
             {
                 return policy;
             }
@@ -85,7 +85,7 @@ namespace Herta.Middlewares.SecurityMiddleware
             policy = CreatePolicyInstance(methodAttr ?? controllerAttr);
 
             // 将策略实例添加到缓存中
-            _policyCache.TryAdd(cacheKey, policy);
+            _policyCache.Set(cacheKey, policy, TimeSpan.FromMinutes(10));
             return policy;
         }
 
