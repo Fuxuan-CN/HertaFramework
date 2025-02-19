@@ -1,69 +1,119 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Herta.Utils.MemoryCache
 {
-    public class MemoryCache<KT, VT>
+    public class MemoryCache<KT, VT> : IDisposable where KT : notnull where VT : class
     {
         private readonly ConcurrentDictionary<KT, CacheItem<VT>> _cache = new();
-        private readonly Timer _cleanupTimer;
+        private readonly Lazy<Timer> _cleanupTimer;
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private bool _disposed = false;
+        private bool _timerStarted = false;
 
-        // 定义回调事件
         public event EventHandler<KT>? ItemRemoved;
+        public event EventHandler<KT>? ItemAdded;
+        public int Count => _cache.Count;
 
         public MemoryCache()
         {
-            // 启动一个定时器，定期清理过期项
-            _cleanupTimer = new Timer(_ => Cleanup(), null, 0, 60000); // 每60秒清理一次
+            _cleanupTimer = new Lazy<Timer>(() => new Timer(Cleanup, null, Timeout.Infinite, 60000));
         }
 
         public void Set(KT key, VT value, TimeSpan expiration)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(MemoryCache<KT, VT>));
+
             var cacheItem = new CacheItem<VT>
             {
-                Value = value,
+                Value = value ?? throw new ArgumentNullException(nameof(value)),
                 ExpirationTime = DateTime.UtcNow.Add(expiration)
             };
             _cache[key] = cacheItem;
+            ItemAdded?.Invoke(this, key);
+
+            // 启动定时器（如果尚未启动）
+            if (!_timerStarted)
+            {
+                _cleanupTimer.Value.Change(0, 60000);
+                _timerStarted = true;
+            }
         }
 
-        public bool TryGet(KT key, out VT value)
+        public bool TryGet(KT key, out VT? value)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(MemoryCache<KT, VT>));
+
             if (_cache.TryGetValue(key, out var cacheItem) && cacheItem.ExpirationTime > DateTime.UtcNow)
             {
                 value = cacheItem.Value;
                 return true;
             }
 
-            // 如果项已过期，触发回调并移除
+            value = null;
             Remove(key);
-            value = default;
             return false;
         }
 
         public void Remove(KT key)
         {
+            if (_disposed)
+                return;
+
             if (_cache.TryRemove(key, out var cacheItem))
             {
-                // 触发回调事件
                 ItemRemoved?.Invoke(this, key);
             }
         }
 
-        private void Cleanup()
+        private void Cleanup(object? state)  // 将 state 参数标记为可空
         {
+            if (_disposed || _cancellationTokenSource.Token.IsCancellationRequested)
+                return;
+
+            var keysToRemove = new List<KT>();
+
             foreach (var kvp in _cache)
             {
                 if (kvp.Value.ExpirationTime < DateTime.UtcNow)
                 {
-                    Remove(kvp.Key);
+                    keysToRemove.Add(kvp.Key);
                 }
+            }
+
+            foreach (var key in keysToRemove)
+            {
+                Remove(key);
             }
         }
 
-        private class CacheItem<T>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    _cancellationTokenSource.Cancel();
+                    _cleanupTimer.Value?.Dispose();
+                    _cache.Clear();
+                }
+
+                _disposed = true;
+            }
+        }
+
+        private class CacheItem<T> where T : class
         {
             public required T Value { get; set; }
             public DateTime ExpirationTime { get; set; }
