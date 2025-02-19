@@ -64,15 +64,17 @@ namespace Herta.Middlewares.SecurityMiddleware
             var controllerAttr = controllerType.GetCustomAttributes<SecurityProtectAttribute>(false).FirstOrDefault();
 
             // 确定最终的安全策略
-            var policy = MakeOrGetPolicyHandler(actionDescriptor.ControllerName, actionDescriptor.ActionName, ipAddr, methodAttr, controllerAttr);
+            var policy = GetOrCachePolicy(actionDescriptor.ControllerName, actionDescriptor.ActionName, ipAddr, methodAttr, controllerAttr);
 
             // 应用安全策略
             await ApplySecurityPolicy(context, policy);
         }
 
-        private ISecurityPolicy MakeOrGetPolicyHandler(string controllerName, string actionName, string ipAddr, SecurityProtectAttribute? methodAttr, SecurityProtectAttribute? controllerAttr)
+        private ISecurityPolicy GetOrCachePolicy(string controllerName, string actionName, string ipAddr, SecurityProtectAttribute? methodAttr, SecurityProtectAttribute? controllerAttr)
         {
-            // 构造缓存键
+            // 构造缓存键 (类似于Scoped，避免多个连接共享同一个策略实例，导致并发问题)
+            // 比如： 当A和B连接共享一个令牌桶，A大量请求，占用大量令牌，导致B得不到令牌，B的请求被拒绝
+            // 通过控制器名字-动作方法-ip地址的缓存键可以确保每个连接都有自己的策略实例，解决了并发问题
             var cacheKey = $"{controllerName}:{actionName}:{ipAddr}";
 
             // 从缓存中获取策略实例
@@ -85,7 +87,11 @@ namespace Herta.Middlewares.SecurityMiddleware
             policy = CreatePolicyInstance(methodAttr ?? controllerAttr);
 
             // 将策略实例添加到缓存中
-            _policyCache.Set(cacheKey, policy, TimeSpan.FromMinutes(10));
+            // 优化，确保不是default策略，才缓存
+            if (policy != _defaultSecurityPolicy)
+            {
+                _policyCache.Set(cacheKey, policy, TimeSpan.FromMinutes(10));
+            }
             return policy;
         }
 
