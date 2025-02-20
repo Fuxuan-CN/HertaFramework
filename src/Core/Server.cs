@@ -38,7 +38,7 @@ namespace Herta.Core.Server
         public event Action? OnStart;
         public event Action? OnStop;
 
-        public HertaApiServer(bool debug = false, bool UseDefaultDb = true, bool UseDefaultAuth = true, WebApplicationBuilder? builder = null, WebApplication? app = null)
+        public HertaApiServer(bool debug = false, bool IgnoreConfigureWarning = false, bool UseDefaultDb = true, bool UseDefaultAuth = true, WebApplicationBuilder? builder = null, WebApplication? app = null)
         {
             _useDefaultDb = UseDefaultDb;
             _useDefaultAuth = UseDefaultAuth;
@@ -49,14 +49,9 @@ namespace Herta.Core.Server
                 });
 
             _isDevelopment = debug;
-
+            _ignoreConfigWarn = IgnoreConfigureWarning;
             Initialize();
             _app = app ?? _builder.Build();
-        }
-
-        private void IgnoreConfigureWarning()
-        {
-            _ignoreConfigWarn = true;
         }
 
         private void InitLogger()
@@ -84,7 +79,7 @@ namespace Herta.Core.Server
         {
             if (!_ignoreConfigWarn)
             {
-                _logger.Warn($"{logMsg}, to ignore this warning, call IgnoreConfigureWarning() method.");
+                _logger.Warn($"{logMsg}, to ignore this warning, set the IgnoreConfigureWarning to true in HertaApiServer constructor.");
             }
         }
         private void BuildServices()
