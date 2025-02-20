@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.WebSockets;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.IO;
 using System.Text;
@@ -12,14 +15,13 @@ using Herta.Extensions.AutoServiceRegExt;
 using Herta.Extensions.AutoMiddlewareRegExt;
 using Herta.Extensions.AutoAuthRegExt;
 using Herta.Core.Contexts.DBContext;
-using Herta.Core.Services.UserService;
 using Herta.Security.Requirements.JwtRequire;
-using Microsoft.AspNetCore.WebSockets;
-using Microsoft.EntityFrameworkCore;
+
 using Pomelo.EntityFrameworkCore.MySql;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+
 
 namespace Herta.Core.Server
 {
@@ -28,13 +30,19 @@ namespace Herta.Core.Server
         private WebApplicationBuilder _builder;
         private WebApplication _app;
         private bool _isDevelopment;
-        private bool _needAuthentication = false;
-        public static NLog.ILogger _logger = LoggerManager.GetLogger(typeof(HertaApiServer));
+        private static NLog.ILogger _logger = LoggerManager.GetLogger(typeof(HertaApiServer));
+        private bool _useDefaultDb;
+        private bool _ignoreConfigWarn = false;
+        private bool _useDefaultAuth;
+        public event Action<WebApplication>? OnConfigure;
+        public event Action? OnStart;
+        public event Action? OnStop;
 
-        public HertaApiServer(bool debug = false, bool needAuth = false)
+        public HertaApiServer(bool debug = false, bool UseDefaultDb = true, bool UseDefaultAuth = true, WebApplicationBuilder? builder = null, WebApplication? app = null)
         {
-            _needAuthentication = needAuth;
-            _builder = WebApplication.CreateBuilder(
+            _useDefaultDb = UseDefaultDb;
+            _useDefaultAuth = UseDefaultAuth;
+            _builder = builder ?? WebApplication.CreateBuilder(
                 new WebApplicationOptions
                 {
                     EnvironmentName = debug ? "Development" : "Production"
@@ -43,39 +51,60 @@ namespace Herta.Core.Server
             _isDevelopment = debug;
 
             Initialize();
-            _app = _builder.Build();
+            _app = app ?? _builder.Build();
         }
 
-        public bool IsDevelopment()
+        private void IgnoreConfigureWarning()
         {
-            return _isDevelopment;
+            _ignoreConfigWarn = true;
+        }
+
+        private void InitLogger()
+        {
+            _builder.Logging.ClearProviders(); // 清除默认日志提供程序
+            LoggerManager.Initialize(_builder.Configuration); // 初始化日志管理器
         }
 
         private void Initialize()
         {
-            _builder.Logging.ClearProviders(); // 清除默认日志提供程序
-            LoggerManager.Initialize(_builder.Configuration); // 初始化日志管理器
+            // 检查开发者有没有自定义日志配置，不能覆盖开发者的配置
+            bool hasCustomLogger = _builder.Configuration.GetSection("Logging").GetChildren().Any();
+
+            if (!hasCustomLogger) // using my logger if the developer has not his own logger
+            {
+                InitLogger();
+            }
             // fatal exception hook setting.
             OnFatalException();
             // Configure services
             BuildServices();
         }
 
+        private void ConfigWarn(string? logMsg)
+        {
+            if (!_ignoreConfigWarn)
+            {
+                _logger.Warn($"{logMsg}, to ignore this warning, call IgnoreConfigureWarning() method.");
+            }
+        }
         private void BuildServices()
         {
             // swich mysql database
-            var connectionString = _builder.Configuration["ConnectionStrings:DefaultConnection"];
-            _builder.Services.AddDbContext<ApplicationDbContext>(
-                options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString))
-            );
+            if (_useDefaultDb)
+            {
+                 var connectionString = _builder.Configuration["ConnectionStrings:DefaultConnection"];
+                _builder.Services.AddDbContext<ApplicationDbContext>(
+                    options => options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString))
+                );
+                ConfigWarn("Attention: HertaApiServer-constructor: UseDefaultDb is true , you need set it to false to use your own database.");
+            }
 
             // Add services to the container
             _builder.Services.AddControllers();
             _builder.Services.AutoRegisterServices();
             _builder.Services.AddEndpointsApiExplorer();
             _builder.Services.AddHttpContextAccessor();
-
-            if (_needAuthentication)
+            if (_useDefaultAuth)
             {
                 _builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
@@ -91,9 +120,10 @@ namespace Herta.Core.Server
                         ClockSkew = TimeSpan.Zero
                     };
                 });
-
-                _builder.Services.AddAutoAuthorizationPolicies();
+                ConfigWarn("Attention: HertaApiServer-constructor: UseDefaultAuth is true , you need set it to false to use your own authentication.");
             }
+
+            _builder.Services.AddAutoAuthorizationPolicies();
 
             // Add CORS support
             _builder.Services.AddCors(options =>
@@ -103,31 +133,6 @@ namespace Herta.Core.Server
                     builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
                 });
             });
-
-            if (_isDevelopment)
-            {
-                _builder.Services.AddOpenApi();
-            }
-
-            // Add health checks
-            _builder.Services.AddHealthChecks();
-        }
-
-        public void Build()
-        {
-            if (_app == null)
-            {
-                _app = _builder.Build();
-            }
-            else
-            {
-                return;
-            }
-        }
-
-        public WebApplication GetAppInstance()
-        {
-            return _app;
         }
 
         private void Configure()
@@ -142,45 +147,27 @@ namespace Herta.Core.Server
             _app.UseHttpsRedirection();
             _app.UseCors();
             _app.MapControllers();
-            _app.UseHealthChecks("/health");
             _app.UseWebSockets(new WebSocketOptions
             {
                 KeepAliveInterval = TimeSpan.FromMinutes(3), // 3分钟确认客户端是否还在线
             });
             _app.UseAutoMiddleware();
+            OnConfigure?.Invoke(_app); // 允许开发者自定义配置
         }
 
         private void LifeTime()
         {
             Configure();
-            OnStartUp();
-        }
-
-        private void OnStartUp()
-        {
+            OnStart?.Invoke();
             _logger.Info("Server started.");
             _app.Run();
-            OnStop();
-        }
-
-        private void OnStop(Action? callback = null)
-        {
+            OnStop?.Invoke();
             _logger.Info("Server stopped.");
-            if (callback != null)
-            {
-                callback();
-            }
         }
 
         public void Run()
         {
             LifeTime();
-        }
-
-        // Public method to get the IServiceCollection
-        public IServiceCollection GetServices()
-        {
-            return _builder.Services;
         }
 
         // Additional methods to support controller-based routing
