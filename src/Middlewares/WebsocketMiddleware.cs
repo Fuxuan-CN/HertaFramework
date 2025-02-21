@@ -107,7 +107,18 @@ namespace Herta.Middleware.Websocket
                         var delegateType = typeof(Func<HertaWebsocket, Task>);
                         var methodDelegate = item.Descriptor.MethodInfo.CreateDelegate(delegateType, controller);
 
-                        await ((Func<HertaWebsocket, Task>)methodDelegate)(HertaWs);
+                        try
+                        {
+                            await ((Func<HertaWebsocket, Task>)methodDelegate)(HertaWs);
+                        }
+                        catch (Exception ex)
+                        {
+                            var errStackTraces = ex.StackTrace;
+                            var errMessage = $"{ex.GetType().Name}: {ex.Message}";
+                            var logMsg = $"Websocket handler error: {errMessage}\n{errStackTraces}";
+                            _logger.Error(logMsg);
+                            await HertaWs.CloseAsync(1001, "websocket handler error.");
+                        }
                         return; // 匹配成功后直接退出方法
                     }
                     else
