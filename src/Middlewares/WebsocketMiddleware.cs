@@ -18,7 +18,6 @@ using NLog;
 using Herta.Decorators.Websocket;
 using Herta.Utils.HertaWebsocketUtil;
 using Herta.Decorators.Middleware;
-using Herta.Utils.RouteCacheMatcher;
 
 namespace Herta.Middleware.Websocket
 {
@@ -66,8 +65,10 @@ namespace Herta.Middleware.Websocket
                     var templateSegments = fullWebsocketPath.Trim('/').Split('/');
                     if (pathSegments.Length != templateSegments.Length)
                     {
+                        _logger.Trace($"Path segments length not match: {requestPath} vs {fullWebsocketPath}");
                         continue; // 路径段数不匹配，跳过
                     }
+                    _logger.Trace($"Path segments: {string.Join(", ", pathSegments)}");
 
                     for (int i = 0; i < pathSegments.Length; i++)
                     {
@@ -75,10 +76,11 @@ namespace Herta.Middleware.Websocket
                         {
                             var paramName = templateSegments[i].Trim('{', '}');
                             parameters[paramName] = pathSegments[i];
+                            _logger.Trace($"Path parameter: {paramName}={pathSegments[i]}");
                         }
                         else if (pathSegments[i] != templateSegments[i])
-        
                         {
+                            _logger.Trace($"Path segments not match: {pathSegments[i]} vs {templateSegments[i]}");
                             continue; // 静态路径部分不匹配，跳过
                         }
                     }
@@ -86,7 +88,9 @@ namespace Herta.Middleware.Websocket
                     // 提取查询字符串参数
                     foreach (var queryParam in context.Request.Query)
                     {
-                        parameters[queryParam.Key] = queryParam.Value.FirstOrDefault();
+                        var queryValue = queryParam.Value.FirstOrDefault();
+                        _logger.Trace($"Query parameter: {queryParam.Key}={queryValue}");
+                        parameters[queryParam.Key] = queryValue;
                     }
 
                     // 检查是否所有动态参数都已提取
@@ -105,6 +109,10 @@ namespace Herta.Middleware.Websocket
 
                         await ((Func<HertaWebsocket, Task>)methodDelegate)(HertaWs);
                         return; // 匹配成功后直接退出方法
+                    }
+                    else
+                    {
+                        _logger.Trace($"Path parameters not match: {string.Join(", ", item.WebsocketAttribute.Parameters.Select(p => p + "=" + parameters.GetValueOrDefault(p)))}");
                     }
                 }
             }
