@@ -25,6 +25,7 @@ namespace Herta.Extensions.AutoMiddlewareRegExt
         {
             var middlewareTypes = assemblies.SelectMany(a => a.GetTypes())
                 .Where(t => t.GetCustomAttributes<MiddlewareAttribute>().Any())
+                .Where(t => t.GetCustomAttribute<MiddlewareAttribute>()?.Enabled ?? true)
                 .OrderBy(t => t.GetCustomAttribute<MiddlewareAttribute>()?.Order ?? int.MaxValue)
                 .ToList();
 

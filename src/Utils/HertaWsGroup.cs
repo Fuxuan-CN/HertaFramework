@@ -56,6 +56,16 @@ namespace Herta.Utils.WebsocketGroup
         }
 
         /// <summary>
+        /// 获取指定群组的连接数量
+        /// </summary>
+        /// <param name="groupId">群组 ID</param>
+        /// <returns>连接数量</returns>
+        public int GetGroupConnectionCount(int groupId)
+        {
+            return _groups.ContainsKey(groupId) ? _groups[groupId].Count : 0;
+        }
+
+        /// <summary>
         /// 获取群组中的所有 WebSocket 连接
         /// </summary>
         /// <param name="groupId">群组 ID</param>

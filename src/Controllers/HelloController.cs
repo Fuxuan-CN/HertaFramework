@@ -24,11 +24,11 @@ namespace HerTa.Controllers.HelloController
             return new Response("Hello, world!");
         }
 
-        [Websocket("echo/{id}")]
+        [Websocket("echo/{msg}")]
         public async Task TestWebsocket(HertaWebsocket websocket)
         {
             _logger.Info("HelloController.TestWebsocket() called");
-            await websocket.SendTextAsync($"Hello, world!, from id is {websocket.Parameters["id"]}, and query is {websocket.Parameters["e"]}.");
+            await websocket.SendTextAsync($"Hello, world!, from msg is {websocket.Parameters["msg"]}, ");
             await websocket.CloseAsync(1000, "Goodbye!");
         }
     }

@@ -92,7 +92,7 @@ namespace Herta.Utils.HertaWebsocketUtil
             await ExecuteWithStateCheck(async () =>
             {
                 await _webSocket.CloseAsync((WebSocketCloseStatus)code, reason, CancellationToken.None);
-            }, "Closing connection");
+            }, $"Closing connection with reason: {reason}");
         }
 
         public async Task<string> ReceiveTextAsync()
