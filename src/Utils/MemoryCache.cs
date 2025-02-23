@@ -13,14 +13,18 @@ namespace Herta.Utils.MemoryCache
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private bool _disposed = false;
         private bool _timerStarted = false;
-
+        private TimeSpan _cleanUpInterval;
+        public int Count => _cache.Count;
+        public event EventHandler? CleanStarted;
         public event EventHandler<KT>? ItemRemoved;
         public event EventHandler<KT>? ItemAdded;
-        public int Count => _cache.Count;
+        public event EventHandler<KT>? ItemRefreshed;
+        public event EventHandler<KT>? ItemExpired;
 
-        public MemoryCache()
+        public MemoryCache(TimeSpan? CleanUpInterval = null)
         {
-            _cleanupTimer = new Lazy<Timer>(() => new Timer(Cleanup, null, Timeout.Infinite, 60000));
+            _cleanUpInterval = CleanUpInterval ?? TimeSpan.FromMinutes(1);
+            _cleanupTimer = new Lazy<Timer>(() => new Timer(Cleanup, null, _cleanUpInterval, _cleanUpInterval));
         }
 
         public void Set(KT key, VT value, TimeSpan expiration)
@@ -39,8 +43,9 @@ namespace Herta.Utils.MemoryCache
             // 启动定时器（如果尚未启动）
             if (!_timerStarted)
             {
-                _cleanupTimer.Value.Change(0, 60000);
+                _cleanupTimer.Value.Change(0, _cleanUpInterval.Milliseconds);
                 _timerStarted = true;
+                CleanStarted?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -52,12 +57,31 @@ namespace Herta.Utils.MemoryCache
             if (_cache.TryGetValue(key, out var cacheItem) && cacheItem.ExpirationTime > DateTime.UtcNow)
             {
                 value = cacheItem.Value;
+                cacheItem.LastAccessTime = DateTime.UtcNow; // 更新最后访问时间
                 return true;
             }
 
+            ItemExpired?.Invoke(this, key);
             value = null;
             Remove(key);
             return false;
+        }
+
+        public void Refresh(KT key, TimeSpan expOffset)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(MemoryCache<KT, VT>));
+
+            if (_cache.TryGetValue(key, out var cacheItem))
+            {
+                cacheItem.LastAccessTime = DateTime.UtcNow;
+                cacheItem.ExpirationTime = DateTime.UtcNow.Add(expOffset);
+                ItemRefreshed?.Invoke(this, key);
+            }
+            else
+            {
+                throw new KeyNotFoundException($"Key {key} not found in cache.");
+            }
         }
 
         public void Remove(KT key)
@@ -71,7 +95,7 @@ namespace Herta.Utils.MemoryCache
             }
         }
 
-        private void Cleanup(object? state)  // 将 state 参数标记为可空
+        private void Cleanup(object? state)
         {
             if (_disposed || _cancellationTokenSource.Token.IsCancellationRequested)
                 return;
@@ -117,6 +141,7 @@ namespace Herta.Utils.MemoryCache
         {
             public required T Value { get; set; }
             public DateTime ExpirationTime { get; set; }
+            public DateTime LastAccessTime { get; set; }
         }
     }
 }
