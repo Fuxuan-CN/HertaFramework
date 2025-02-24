@@ -6,24 +6,26 @@ using System.Threading.Tasks;
 
 namespace Herta.Utils.MemoryCache
 {
-    public class MemoryCache<KT, VT> : IDisposable where KT : notnull where VT : class
+    public class MemoryCache<KT, VT> : IDisposable 
+        where KT : notnull 
+        where VT : class
     {
         private readonly ConcurrentDictionary<KT, CacheItem<VT>> _cache = new();
         private readonly Lazy<Timer> _cleanupTimer;
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private bool _disposed = false;
-        private bool _timerStarted = false;
         private TimeSpan _cleanUpInterval;
+
         public int Count => _cache.Count;
-        public event EventHandler? CleanStarted;
+        public event EventHandler<TimeSpan>? CleanStarted;
         public event EventHandler<KT>? ItemRemoved;
         public event EventHandler<KT>? ItemAdded;
         public event EventHandler<KT>? ItemRefreshed;
         public event EventHandler<KT>? ItemExpired;
 
-        public MemoryCache(TimeSpan? CleanUpInterval = null)
+        public MemoryCache(TimeSpan? cleanUpInterval = null)
         {
-            _cleanUpInterval = CleanUpInterval ?? TimeSpan.FromMinutes(1);
+            _cleanUpInterval = cleanUpInterval ?? TimeSpan.FromMinutes(1);
             _cleanupTimer = new Lazy<Timer>(() => new Timer(Cleanup, null, _cleanUpInterval, _cleanUpInterval));
         }
 
@@ -32,21 +34,35 @@ namespace Herta.Utils.MemoryCache
             if (_disposed)
                 throw new ObjectDisposedException(nameof(MemoryCache<KT, VT>));
 
-            var cacheItem = new CacheItem<VT>
+            var cacheItem = new CacheItem<VT>(value) // 通过构造函数初始化
             {
-                Value = value ?? throw new ArgumentNullException(nameof(value)),
                 ExpirationTime = DateTime.UtcNow.Add(expiration)
             };
             _cache[key] = cacheItem;
             ItemAdded?.Invoke(this, key);
 
             // 启动定时器（如果尚未启动）
-            if (!_timerStarted)
+            if (!_cleanupTimer.IsValueCreated)
             {
-                _cleanupTimer.Value.Change(0, _cleanUpInterval.Milliseconds);
-                _timerStarted = true;
-                CleanStarted?.Invoke(this, EventArgs.Empty);
+                _cleanupTimer.Value.Change(0, (int)_cleanUpInterval.TotalMilliseconds);
+                CleanStarted?.Invoke(this, _cleanUpInterval);
             }
+        }
+
+        public VT? Get(KT key)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(MemoryCache<KT, VT>));
+
+            if (_cache.TryGetValue(key, out var cacheItem) && cacheItem.ExpirationTime > DateTime.UtcNow)
+            {
+                cacheItem.LastAccessTime = DateTime.UtcNow; // 更新最后访问时间
+                return cacheItem.Value;
+            }
+
+            ItemExpired?.Invoke(this, key);
+            Remove(key);
+            return null;
         }
 
         public bool TryGet(KT key, out VT? value)
@@ -62,12 +78,12 @@ namespace Herta.Utils.MemoryCache
             }
 
             ItemExpired?.Invoke(this, key);
-            value = null;
             Remove(key);
+            value = null;
             return false;
         }
 
-        public void Refresh(KT key, TimeSpan expOffset)
+        public bool Refresh(KT key, TimeSpan expOffset)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(MemoryCache<KT, VT>));
@@ -77,11 +93,10 @@ namespace Herta.Utils.MemoryCache
                 cacheItem.LastAccessTime = DateTime.UtcNow;
                 cacheItem.ExpirationTime = DateTime.UtcNow.Add(expOffset);
                 ItemRefreshed?.Invoke(this, key);
+                return true;
             }
-            else
-            {
-                throw new KeyNotFoundException($"Key {key} not found in cache.");
-            }
+
+            return false;
         }
 
         public void Remove(KT key)
@@ -102,17 +117,18 @@ namespace Herta.Utils.MemoryCache
 
             var keysToRemove = new List<KT>();
 
-            foreach (var kvp in _cache)
+            foreach (var pair in _cache)
             {
-                if (kvp.Value.ExpirationTime < DateTime.UtcNow)
+                if (pair.Value.ExpirationTime <= DateTime.UtcNow)
                 {
-                    keysToRemove.Add(kvp.Key);
+                    keysToRemove.Add(pair.Key);
                 }
             }
 
             foreach (var key in keysToRemove)
             {
                 Remove(key);
+                ItemExpired?.Invoke(this, key);
             }
         }
 
@@ -129,19 +145,27 @@ namespace Herta.Utils.MemoryCache
                 if (disposing)
                 {
                     _cancellationTokenSource.Cancel();
-                    _cleanupTimer.Value?.Dispose();
+                    if (_cleanupTimer.IsValueCreated)
+                    {
+                        _cleanupTimer.Value.Dispose();
+                    }
                     _cache.Clear();
                 }
-
                 _disposed = true;
             }
         }
 
         private class CacheItem<T> where T : class
         {
-            public required T Value { get; set; }
+            public T Value { get; } // 只读属性
             public DateTime ExpirationTime { get; set; }
             public DateTime LastAccessTime { get; set; }
+
+            public CacheItem(T value) // 构造函数初始化 Value
+            {
+                Value = value;
+                LastAccessTime = DateTime.UtcNow;
+            }
         }
     }
 }
