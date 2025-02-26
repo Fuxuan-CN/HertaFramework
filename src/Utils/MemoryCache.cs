@@ -15,7 +15,6 @@ namespace Herta.Utils.MemoryCache
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private bool _disposed = false;
         private TimeSpan _cleanUpInterval;
-
         public int Count => _cache.Count;
         public event EventHandler<TimeSpan>? CleanStarted;
         public event EventHandler<KT>? ItemRemoved;

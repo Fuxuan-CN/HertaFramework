@@ -14,18 +14,11 @@ namespace Herta.Responses.BaseResponse
         public string ContentType { get; set; }
         protected HttpContext? HttpContext { get; set; }
 
-        private static readonly JsonSerializerOptions DefaultJsonSettings = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = true
-        };
-
-        public BaseResponse(int httpStatusCode, T? data, string contentType = "application/json", JsonSerializerOptions? jsonOptions = null)
+        public BaseResponse(int httpStatusCode, T? data, string contentType = "application/json")
         {
             Data = data;
             HttpStatusCode = httpStatusCode;
             ContentType = contentType;
-            JsonOptions = jsonOptions ?? DefaultJsonSettings;
         }
 
         protected HttpResponse? GetSourceResponse()
@@ -47,8 +40,8 @@ namespace Herta.Responses.BaseResponse
 
             if (Data != null)
             {
-                var dat = JsonSerializer.Serialize(Data, JsonOptions);
-                await response.WriteAsync(dat);
+                var json = JsonSerializer.Serialize(Data);
+                await response.WriteAsync(json);
             }
             else if (HttpStatusCode == StatusCodes.Status204NoContent)
             {
@@ -61,7 +54,5 @@ namespace Herta.Responses.BaseResponse
                 await response.WriteAsync("{}");
             }
         }
-
-        private JsonSerializerOptions JsonOptions { get; }
     }
 }

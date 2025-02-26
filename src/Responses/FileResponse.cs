@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Herta.Responses.BaseResponse;
@@ -12,8 +11,8 @@ namespace Herta.Responses.FileResponse
         public string FilePath { get; }
         public string FileName { get; }
 
-        public FileResponse(string filePath, string fileName, int httpStatusCode = StatusCodes.Status200OK, string contentType = "application/octet-stream", JsonSerializerOptions? jsonOptions = null)
-            : base(httpStatusCode, null, contentType, jsonOptions)
+        public FileResponse(string filePath, string fileName, int httpStatusCode = StatusCodes.Status200OK, string contentType = "application/octet-stream")
+            : base(httpStatusCode, null, contentType)
         {
             FilePath = filePath;
             FileName = fileName;

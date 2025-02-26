@@ -23,11 +23,11 @@ namespace Herta.Extensions.AutoMiddlewareRegExt
         // 允许用户指定要扫描的程序集
         public static IApplicationBuilder UseAutoMiddleware(this IApplicationBuilder app, params Assembly[] assemblies)
         {
-            var middlewareTypes = assemblies.SelectMany(a => a.GetTypes())
-                .Where(t => t.GetCustomAttributes<MiddlewareAttribute>().Any())
-                .Where(t => t.GetCustomAttribute<MiddlewareAttribute>()?.Enabled ?? true)
-                .OrderBy(t => t.GetCustomAttribute<MiddlewareAttribute>()?.Order ?? int.MaxValue)
-                .ToList();
+            var middlewareTypes = assemblies.SelectMany(assembliy => assembliy.GetTypes())
+                .Where(types => types.GetCustomAttributes<MiddlewareAttribute>().Any())
+                .Where(middlewareType => middlewareType.GetCustomAttribute<MiddlewareAttribute>()?.Enabled ?? true)
+                .OrderBy(middlewareType => middlewareType.GetCustomAttribute<MiddlewareAttribute>()?.Order ?? int.MaxValue)
+                .ToArray();
 
             foreach (var middlewareType in middlewareTypes)
             {

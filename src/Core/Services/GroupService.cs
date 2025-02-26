@@ -12,6 +12,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Herta.Decorators.Services;
+using Herta.Exceptions.HttpException;
 
 namespace Herta.Services.GroupService
 {
@@ -25,17 +26,41 @@ namespace Herta.Services.GroupService
             _context = context;
         }
 
-        public async Task<bool> CreateGroupAsync(Groups group)
+        public async Task<bool> CreateGroupAsync(Groups group, int whatUserCreatedItId)
         {
-            await _context.Groups.AddAsync(group);
-            await _context.SaveChangesAsync();
-            return true;
+            using (var transaction = _context.Database.BeginTransaction())
+            {
+                try
+                {
+                    await _context.Groups.AddAsync(group);
+                    await _context.SaveChangesAsync(); // 确保 group.Id 被分配
+
+                    var user = await _context.Users.FindAsync(whatUserCreatedItId);
+                    if (user == null) throw new HttpException(404, "没有找到创建者");
+
+                    var groupMember = new GroupMembers
+                    {
+                        GroupId = group.Id,
+                        UserId = user.Id,
+                        RoleIs = GroupRole.OWNER
+                    };
+
+                    await AddMemberToGroupAsync(group.Id, groupMember);
+                    transaction.Commit();
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback();
+                    throw new HttpException(500, "创建群组失败", ex);
+                }
+            }
         }
 
         public async Task<bool> DeleteGroupAsync(int groupId)
         {
             var group = await _context.Groups.FindAsync(groupId);
-            if (group == null) return false;
+            if (group == null) throw new HttpException(404, "没有找到该群聊");
 
             _context.Groups.Remove(group);
             await _context.SaveChangesAsync();
@@ -55,10 +80,12 @@ namespace Herta.Services.GroupService
 
         public async Task<bool> AddMemberToGroupAsync(int groupId, GroupMembers member)
         {
-            var group = await _context.Groups.FindAsync(groupId);
-            if (group == null) return false;
+            if (member.GroupId != groupId) throw new HttpException(400, "群组 ID 不匹配");
 
-            member.GroupId = groupId;
+            var existingMember = await _context.GroupMembers
+                .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == member.UserId);
+            if (existingMember != null) throw new HttpException(400, "成员已存在于群组中");
+
             await _context.GroupMembers.AddAsync(member);
             await _context.SaveChangesAsync();
             return true;
@@ -68,7 +95,7 @@ namespace Herta.Services.GroupService
         {
             var member = await _context.GroupMembers
                 .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
-            if (member == null) return false;
+            if (member == null) throw new HttpException(404, "没有找到该成员");
 
             _context.GroupMembers.Remove(member);
             await _context.SaveChangesAsync();
@@ -77,17 +104,20 @@ namespace Herta.Services.GroupService
 
         public async Task<IEnumerable<GroupMembers>> GetAllGroupMembersAsync(int groupId)
         {
-            return await _context.GroupMembers
-                .Where(gm => gm.GroupId == groupId)
-                .ToListAsync();
+            var groupMember = await _context.GroupMembers.Where(gm => gm.GroupId == groupId).ToListAsync();
+            return groupMember;
         }
 
         public async Task<bool> UpdateGroupAsync(Groups group)
         {
             var existingGroup = await _context.Groups.FindAsync(group.Id);
-            if (existingGroup == null) return false;
+            if (existingGroup == null) throw new HttpException(404, "没有找到该群聊");
 
-            _context.Entry(existingGroup).CurrentValues.SetValues(group);
+            existingGroup.GroupName = group.GroupName;
+            existingGroup.Description = group.Description;
+            existingGroup.AvatarUrl = group.AvatarUrl;
+            existingGroup.UpdatedAt = DateTime.UtcNow;
+
             await _context.SaveChangesAsync();
             return true;
         }
@@ -96,8 +126,7 @@ namespace Herta.Services.GroupService
         {
             var existingMember = await _context.GroupMembers
                 .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == member.UserId);
-            if (existingMember == null) return false;
-
+            if (existingMember == null) throw new HttpException(404, "没有找到该成员");
             _context.Entry(existingMember).CurrentValues.SetValues(member);
             await _context.SaveChangesAsync();
             return true;
@@ -122,13 +151,16 @@ namespace Herta.Services.GroupService
             return true;
         }
 
-        public async Task<bool> ChangeMemberRoleAsync(int groupId, int userId, GroupRole role)
+        public async Task<bool> ChangeMemberRoleAsync(int groupId, int userId, GroupRole newRole)
         {
             var member = await _context.GroupMembers
                 .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
-            if (member == null) return false;
+            if (member == null) throw new HttpException(404, "没有找到该成员");
 
-            member.RoleIs = role;
+            if (newRole == GroupRole.OWNER && member.RoleIs != GroupRole.OWNER)
+                throw new HttpException(400, "只能由群主更改成员为群主角色");
+
+            member.RoleIs = newRole;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -141,7 +173,7 @@ namespace Herta.Services.GroupService
                     .FirstOrDefaultAsync(gm => gm.GroupId == groupId && gm.UserId == userId);
                 if (member != null)
                 {
-                    member.RoleIs = role;
+                    await ChangeMemberRoleAsync(groupId, userId, role);
                 }
             }
             await _context.SaveChangesAsync();

@@ -6,7 +6,7 @@ namespace Herta.Interfaces.IGroupService
 {
     public interface IGroupService
     {
-        Task<bool> CreateGroupAsync(Groups group);
+        Task<bool> CreateGroupAsync(Groups group, int WhatUserCreatedItId);
         Task<bool> DeleteGroupAsync(int groupId);
         Task<Groups?> GetGroupAsync(int groupId); // 使用可空类型处理群组不存在的情况
         Task<GroupMembers?> GetGroupMemberAsync(int groupId, int userId); // 使用可空类型处理成员不存在的情况

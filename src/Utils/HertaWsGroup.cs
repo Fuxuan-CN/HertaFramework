@@ -125,8 +125,8 @@ namespace Herta.Utils.WebsocketGroup
                     if (!ws.IsConnected())
                     {
                         group.Remove(ws);
-                        _logger.Warn($"Removed inactive WebSocket connection. Total connections: {group.Count}");
                     }
+                    _logger.Warn($"Removed inactive WebSocket connection. Total connections: {group.Count}");
                 }
             }
         }

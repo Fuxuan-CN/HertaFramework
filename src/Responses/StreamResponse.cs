@@ -9,8 +9,8 @@ namespace Herta.Responses.StreamResponse
 {
     public class StreamResponse : BaseResponse<Stream>
     {
-        public StreamResponse(Stream stream, int httpStatusCode = StatusCodes.Status200OK, string contentType = "application/octet-stream", JsonSerializerOptions? jsonOptions = null)
-            : base(httpStatusCode, stream, contentType, jsonOptions)
+        public StreamResponse(Stream stream, int httpStatusCode = StatusCodes.Status200OK, string contentType = "application/octet-stream")
+            : base(httpStatusCode, stream, contentType)
         {
         }
 

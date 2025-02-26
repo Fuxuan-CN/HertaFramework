@@ -18,25 +18,30 @@ namespace Herta.Security.Authorization
             _authService = authService;
         }
 
+        private AuthorizationFailureReason Reason(string message)
+        {
+            return new AuthorizationFailureReason(this, message);
+        }
+
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, JwtRequirement requirement)
         {
             var httpContext = context.Resource as HttpContext;
             var authHeaderStr = httpContext!.Request.Headers["Authorization"]!.ToString();
             if (string.IsNullOrEmpty(authHeaderStr))
             {
-                throw new HttpException(StatusCodes.Status401Unauthorized, "无法授权，请提供有效的token，请求头Authorization: Bearer <token>缺失");
+                context.Fail(Reason("Authorization 请求头缺失"));
             }
 
             var token = authHeaderStr.Split("Bearer ")[1];
 
             if (string.IsNullOrEmpty(token))
             {
-                throw new HttpException(StatusCodes.Status401Unauthorized, "无效的token");
+                context.Fail(Reason("token为空"));
             }
 
             if (!await _authService.AuthorizeAsync(token))
             {
-                throw new HttpException(StatusCodes.Status401Unauthorized, "无效的token");
+                context.Fail(Reason("无效的token或token已过期"));
             }
 
             context.Succeed(requirement);
