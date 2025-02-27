@@ -20,7 +20,6 @@ namespace Herta.Controllers.GroupController
     public class GroupController
     {
         private readonly IGroupService _groupService;
-        private readonly HertaWsGroup _wsGroup = new HertaWsGroup();
         private readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(GroupController));
 
         public GroupController(IGroupService groupService)

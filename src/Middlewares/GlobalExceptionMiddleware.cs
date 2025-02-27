@@ -44,11 +44,7 @@ namespace Herta.Middleware.GlobalException
         private async Task HandleHttpException(HttpContext context, HttpException httpException)
         {
             string errMsg = $"{httpException.StatusCode} {httpException.Detail} {httpException.Message}";
-            string relevantStackTrace = GetRelevantStackTrace(httpException);
             string requestInfo = $"Request: {context.Request.Method} {context.Request.Path} from {context.Connection.RemoteIpAddress}";
-
-            string errLogmsg = $"{requestInfo} - {errMsg} \n {relevantStackTrace}";
-            _logger.Warn(errLogmsg);
 
             var response = new
             {
@@ -79,13 +75,6 @@ namespace Herta.Middleware.GlobalException
             };
 
             await context.Response.WriteAsJsonAsync(response);
-        }
-
-        private string GetRelevantStackTrace(Exception ex)
-        {
-            string? fullStackTrace = ex.StackTrace;
-            string[] stackLines = fullStackTrace!.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            return stackLines.Length > 0 ? stackLines[0] : fullStackTrace;
         }
     }
 }

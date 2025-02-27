@@ -2,6 +2,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 
 namespace Herta.Models.DataModels.Groups
 {
@@ -21,7 +22,14 @@ namespace Herta.Models.DataModels.Groups
         public string? AvatarUrl { get; set; }
 
         [Column(TypeName = "json")]
-        public Dictionary<string, string>? Metadata { get; set; }
+        public string? _metadata;
+
+        [NotMapped]
+        public Dictionary<string, object>? Metadata
+        {
+            get => _metadata == null? null : JsonSerializer.Deserialize<Dictionary<string, object>>(_metadata);
+            set => _metadata = JsonSerializer.Serialize(value);
+        }
 
         public DateTime CreatedAt { get; set; }
 

@@ -11,7 +11,7 @@ namespace Herta.Models.DataModels.UserInfos
         [Key]
         public int Id { get; set; } // Primary key
         
-        public int? UserId { get; set; } // Foreign key
+        public int UserId { get; set; } // Foreign key
 
         [Required]
         [StringLength(50)]

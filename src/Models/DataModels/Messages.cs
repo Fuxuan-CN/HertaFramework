@@ -14,7 +14,7 @@ namespace Herta.Models.DataModels.Messages
 
         public int? UserId { get; set; }
 
-        public object? Content { get; set; }
+        public string? Content { get; set; }
 
         [Required]
         public required MessageType Type { get; set; }

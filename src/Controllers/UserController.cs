@@ -77,7 +77,6 @@ namespace Herta.Controllers.UserController
         }
 
         [HttpDelete("delete")]
-        [Authorize(Policy = "JwtAuth")]
         public async Task<Response> DeleteUser([FromBody] DeleteUserForm deleteUsrForm)
         {
             _logger.Info($"Deleting user {deleteUsrForm.Username}");
@@ -92,6 +91,7 @@ namespace Herta.Controllers.UserController
         {
             _logger.Info($"Updating user info");
             VaildateData();
+            await _authService.ValidateUserAsync(userInfo.UserId.ToString());
             await _userInfoService.UpdateUserInfoAsync(userInfo);
             return new Response(new { message = "用户信息更新成功" });
         }
@@ -102,6 +102,7 @@ namespace Herta.Controllers.UserController
         {
             _logger.Info($"Partial updating user info.");
             VaildateData();
+            await _authService.ValidateUserAsync(userInfo.UserId.ToString());
             await _userInfoService.PartialUpdateUserInfoAsync(userInfo);
             return new Response(new { message = "用户信息更新成功" });
         }

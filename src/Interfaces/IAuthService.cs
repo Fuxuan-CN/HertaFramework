@@ -6,5 +6,7 @@ namespace Herta.Interfaces.IAuthService
     {
         Task<bool> AuthorizeAsync(string token);
         Task<string> GenTokenAsync(Dictionary<string, object> payload);
+        Task<bool> ValidateUserAsync(string? userId);
+        bool ValidateUser(string? userId);
     }
 }

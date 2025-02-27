@@ -9,7 +9,9 @@ using Microsoft.IdentityModel.Tokens;
 using Herta.Decorators.Services;
 using Herta.Interfaces.IAuthService;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Http;
 using Herta.Utils.Logger;
+using Herta.Exceptions.HttpException;
 using NLog;
 
 namespace Herta.Core.Services.AuthService
@@ -18,11 +20,70 @@ namespace Herta.Core.Services.AuthService
     public class AuthService : IAuthService
     {
         private readonly IConfiguration _configuration;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(AuthService));
 
-        public AuthService(IConfiguration configuration)
+        public AuthService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor)
         {
             _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        public bool ValidateUser(string? userId)
+        {
+            _logger.Trace("Validating user...");
+            try
+            {
+                var token = _httpContextAccessor.HttpContext!.Request.Headers["Authorization"].FirstOrDefault()?.Replace("Bearer ", "") ?? string.Empty;
+                if (string.IsNullOrEmpty(token))
+                {
+                    _logger.Trace("Authorization header is missing or invalid.");
+                    return false;
+                }
+
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Secret"] ?? "secret");
+
+                var parameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = true,
+                    ValidateAudience = false,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
+                };
+
+                var principal = tokenHandler.ValidateToken(token, parameters, out var validatedToken);
+                var userIdClaim = principal.Claims.FirstOrDefault(c => c.Type == "userId");
+
+                if (userIdClaim == null)
+                {
+                    _logger.Trace("User or userId field is missing in the token.");
+                    return false;
+                }
+
+                if (userIdClaim.Value == userId)
+                {
+                    _logger.Trace("User validation succeeded.");
+                    return true;
+                }
+                else
+                {
+                    _logger.Trace("User validation failed.");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error during user validation.");
+                return false;
+            }
+        }
+
+        public async Task<bool> ValidateUserAsync(string? userId)
+        {
+            return await Task.Run(() => ValidateUser(userId));
         }
 
         public async Task<bool> AuthorizeAsync(string token)
