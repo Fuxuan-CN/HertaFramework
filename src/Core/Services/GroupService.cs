@@ -13,6 +13,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Herta.Decorators.Services;
 using Herta.Exceptions.HttpException;
+using Herta.Utils.Logger;
+using NLog;
 
 namespace Herta.Services.GroupService;
 
@@ -20,34 +22,40 @@ namespace Herta.Services.GroupService;
 public class GroupService : IGroupService
 {
     private readonly ApplicationDbContext _context;
+    private readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(GroupService));
 
     public GroupService(ApplicationDbContext context)
     {
         _context = context;
     }
 
-    public async Task<bool> CreateGroupAsync(Groups group, int whatUserCreatedItId)
+    public async Task<(bool success, int groupId)> CreateGroupAsync(Groups group, int? whatUserCreatedItId)
     {
         using (var transaction = _context.Database.BeginTransaction())
         {
             try
             {
+                _logger.Trace($"创建群组: {group.GroupName}");
                 await _context.Groups.AddAsync(group);
                 await _context.SaveChangesAsync(); // 确保 group.Id 被分配
-
-                var user = await _context.Users.FindAsync(whatUserCreatedItId);
-                if (user == null) throw new HttpException(404, "没有找到创建者");
-
-                var groupMember = new GroupMembers
+                if (whatUserCreatedItId != null)
                 {
-                    GroupId = group.Id,
-                    UserId = user.Id,
-                    RoleIs = GroupRole.OWNER
-                };
+                    _logger.Trace($"用户: {whatUserCreatedItId} 创建群组: {group.Id}");
+                    var user = await _context.Users.FindAsync(whatUserCreatedItId);
+                    if (user == null) throw new HttpException(404, "没有找到创建者");
 
-                await AddMemberToGroupAsync(group.Id, groupMember);
+                    var groupMember = new GroupMembers
+                    {
+                        GroupId = group.Id,
+                        UserId = user.Id,
+                        RoleIs = GroupRole.OWNER
+                    };
+
+                    await AddMemberToGroupAsync(group.Id, groupMember);
+                }
+
                 transaction.Commit();
-                return true;
+                return (true, group.Id);
             }
             catch (Exception ex)
             {
@@ -104,7 +112,7 @@ public class GroupService : IGroupService
 
     public async Task<IEnumerable<GroupMembers>> GetAllGroupMembersAsync(int groupId)
     {
-        var groupMember = await _context.GroupMembers.Where(gm => gm.GroupId == groupId).ToListAsync();
+        var groupMember = await _context.GroupMembers.Where(gm => gm.GroupId == groupId).ToArrayAsync();
         return groupMember;
     }
 

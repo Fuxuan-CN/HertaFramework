@@ -6,7 +6,7 @@ using Herta.Models.Enums.MessageType;
 
 namespace Herta.Models.DataModels.Messages;
 
-[Table("Messages")]
+[Table("GroupMessages")]
 public class Message
 {
     [Key]
