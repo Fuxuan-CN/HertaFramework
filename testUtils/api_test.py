@@ -10,10 +10,35 @@ CHANGE = f"{USER}/change"
 UPDATE_INFO = f"{USER}/update/info"
 GET_INFO = f"{USER}/get/info/{{id}}"
 GROUP_ENDPOINT = f"{BASE}/group"
+MEMBER_ENDPOINT = f"{GROUP_ENDPOINT}/member"
 
-ID: int = 1
+ID: int = 4
 WROING_ID: int = ID + 1
 GROUP_ID: int = ID
+
+join_group_form = {
+    "GroupId": GROUP_ID,
+    "UserId": ID,
+    "JoinAbout": "I want to join this group"
+}
+
+unauthorized_join_group_form = {
+    "GroupId": GROUP_ID,
+    "UserId": WROING_ID,
+    "JoinAbout": "I want to join this group"
+}
+
+unauthorized_leave_group_form = {
+    "GroupId": GROUP_ID,
+    "UserId": WROING_ID,
+    "Reason": "I don't want to join this group"
+}
+
+leave_group_form = {
+    "GroupId": GROUP_ID,
+    "UserId": ID,
+    "Reason": "I don't want to join this group"
+}
 
 create_group_form = {
     "OwnerId": ID,
@@ -28,7 +53,7 @@ unauthorized_create_group_form = {
 }
 
 update_group_unauthorized_form = {
-    "UserId": WROING_ID,
+    "OwnerId": WROING_ID,
     "Fields": {
         "GroupName": "testGroup2",
         "Description": "this is a test group2"
@@ -37,7 +62,7 @@ update_group_unauthorized_form = {
 
 update_group_patch_form = {
     "GroupId": GROUP_ID,
-    "UserId": ID,
+    "OwnerId": ID,
     "Fields": {
         "GroupName": "testGroup2",
         "Description": "this is a test group2"
@@ -158,6 +183,21 @@ def test_group_creation(headers):
     # 测试创建群组
     response = requests.post(GROUP_ENDPOINT, json=create_group_form, headers=headers)
     assert response.status_code == 200, f"创建群组失败，状态码：{response.status_code}, 响应内容：{response.text}"
+
+def test_try_unauthorized_join_group(headers):
+    # 尝试未经授权的加入群组
+    response = requests.put(MEMBER_ENDPOINT, json=unauthorized_join_group_form, headers=headers)
+    assert response.status_code == 403, f"状态码不正确，状态码：{response.status_code}, 响应内容：{response.text}"
+
+def test_leave_group(headers):
+    # 测试退出群组
+    response = requests.delete(MEMBER_ENDPOINT, json=leave_group_form, headers=headers)
+    assert response.status_code == 200, f"退出群组失败，状态码：{response.status_code}, 响应内容：{response.text}"
+
+def test_try_unauthorized_leave_group(headers):
+    # 尝试未经授权的退出群组
+    response = requests.delete(MEMBER_ENDPOINT, json=unauthorized_leave_group_form, headers=headers)
+    assert response.status_code == 403, f"状态码不正确，状态码：{response.status_code}, 响应内容：{response.text}"
 
 def test_try_unauthorized_group_creation(headers):
     # 尝试未经授权的创建群组
