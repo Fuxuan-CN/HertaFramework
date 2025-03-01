@@ -1,7 +1,7 @@
 import requests
 import pytest
 
-BASE = "http://127.0.0.1:8000/api"
+BASE = "http://127.0.0.1:5000/api"
 USER = f"{BASE}/user"
 REG = f"{USER}/register"
 LOGIN = f"{USER}/login"
@@ -9,6 +9,40 @@ DELETE = f"{USER}/delete"
 CHANGE = f"{USER}/change"
 UPDATE_INFO = f"{USER}/update/info"
 GET_INFO = f"{USER}/get/info/{{id}}"
+GROUP_ENDPOINT = f"{BASE}/group"
+
+ID: int = 1
+WROING_ID: int = ID + 1
+GROUP_ID: int = ID
+
+create_group_form = {
+    "OwnerId": ID,
+    "GroupName": "testGroup",
+    "Description": "this is a test group"
+}
+
+unauthorized_create_group_form = {
+    "OwnerId": WROING_ID,
+    "GroupName": "testGroup",
+    "Description": "this is a test group"
+}
+
+update_group_unauthorized_form = {
+    "UserId": WROING_ID,
+    "Fields": {
+        "GroupName": "testGroup2",
+        "Description": "this is a test group2"
+    }
+}
+
+update_group_patch_form = {
+    "GroupId": GROUP_ID,
+    "UserId": ID,
+    "Fields": {
+        "GroupName": "testGroup2",
+        "Description": "this is a test group2"
+    }
+}
 
 # 注册数据
 reg_data = {
@@ -34,6 +68,10 @@ wrong_login_data = {
     "password": "wrongpassword"
 }
 
+wrong_data_body = {
+    "username": "testUser",
+} # 缺少密码字段
+
 # 更改密码数据
 change_pwd = {
     "username": "testUser",
@@ -43,7 +81,15 @@ change_pwd = {
 
 # 更新用户信息数据
 update_patch = {
-    "UserId": 1,
+    "UserId": ID,
+    "updateInfo": {
+        "Nickname": "testUser2",
+        "Hobbies": ["reading", "swimming"]
+    }
+}
+
+update_patch_wrong_id = {
+    "UserId": 100,
     "updateInfo": {
         "Nickname": "testUser2",
         "Hobbies": ["reading", "swimming"]
@@ -57,15 +103,18 @@ delete_user = {
     "Reason": "testing"
 }
 
+TOKEN: str = ""
+
 @pytest.fixture
 def headers():
-    token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidGVzdFVzZXIiLCJ1c2VySWQiOiIxIiwibmJmIjoxNzM4ODk4ODQ4LCJleHAiOjE3Mzk1MDM2NDgsImlhdCI6MTczODg5ODg0OCwiaXNzIjoiaG9iYnktZ3JvdXAifQ.F907K6OG7fY2uTwNh10GnPBaWML2UK1p6xU-to5w6pI"
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {TOKEN}"}
 
 def test_register():
     # 测试正常注册
     response = requests.post(REG, json=reg_data)
     assert response.status_code == 200, f"注册失败，状态码：{response.status_code}, 响应内容：{response.text}"
+    global TOKEN
+    TOKEN = response.json()["token"]
 
     # 测试重复注册
     response = requests.post(REG, json=reg_data_existing)
@@ -75,6 +124,11 @@ def test_login():
     # 测试正常登录
     response = requests.post(LOGIN, json=login_data)
     assert response.status_code == 200, f"登录失败，状态码：{response.status_code}, 响应内容：{response.text}"
+
+    # 测试缺少密码字段
+    response = requests.post(LOGIN, json=wrong_data_body)
+    assert response.status_code == 400, f"缺少密码字段未返回400状态码，实际状态码：{response.status_code}, 响应内容：{response.text}"
+    print(response.text)
 
     # 测试错误密码登录
     response = requests.post(LOGIN, json=wrong_login_data)
@@ -90,13 +144,58 @@ def test_update_user_info(headers):
     response = requests.patch(UPDATE_INFO, json=update_patch, headers=headers)
     assert response.status_code == 200, f"更新用户信息失败，状态码：{response.status_code}, 响应内容：{response.text}"
 
+def test_update_user_info_unauthorized_id(headers):
+    # 尝试未经授权的更新用户信息
+    wrong_resp = requests.patch(UPDATE_INFO, json=update_patch_wrong_id, headers=headers)
+    assert wrong_resp.status_code == 403, f"状态码不正确，状态码：{wrong_resp.status_code}, 响应内容：{wrong_resp.text}"
+
 def test_get_user_info():
     # 测试获取用户信息
-    response = requests.get(GET_INFO.format(id=1))
+    response = requests.get(GET_INFO.format(id=ID))
     assert response.status_code == 200, f"获取用户信息失败，状态码：{response.status_code}, 响应内容：{response.text}"
 
+def test_group_creation(headers):
+    # 测试创建群组
+    response = requests.post(GROUP_ENDPOINT, json=create_group_form, headers=headers)
+    assert response.status_code == 200, f"创建群组失败，状态码：{response.status_code}, 响应内容：{response.text}"
+
+def test_try_unauthorized_group_creation(headers):
+    # 尝试未经授权的创建群组
+    response = requests.post(GROUP_ENDPOINT, json=unauthorized_create_group_form, headers=headers)
+    assert response.status_code == 403, f"状态码不正确，状态码：{response.status_code}, 响应内容：{response.text}"
+
+def test_get_group_info():
+    # 测试获取群组信息
+    response = requests.get(f"{GROUP_ENDPOINT}/{GROUP_ID}")
+    assert response.status_code == 200, f"获取群组信息失败，状态码：{response.status_code}, 响应内容：{response.text}"
+
+def test_update_group_info(headers):
+    # 测试更新群组信息
+    response = requests.patch(f"{GROUP_ENDPOINT}", json=update_group_patch_form, headers=headers)
+    assert response.status_code == 200, f"更新群组信息失败，状态码：{response.status_code}, 响应内容：{response.text}"
+
+def test_try_unauthorized_update_group_info_missing_header():
+    # 尝试未提供header的更新群组信息
+    response = requests.patch(f"{GROUP_ENDPOINT}", json=update_group_patch_form)
+    assert response.status_code == 401, f"状态码不正确，状态码：{response.status_code}, 响应内容：{response.text}"
+
+def test_try_unauthorized_update_group_info(headers):
+    # 尝试未经授权的更新群组信息
+    response = requests.patch(f"{GROUP_ENDPOINT}", json=update_group_unauthorized_form, headers=headers)
+    assert response.status_code == 403, f"状态码不正确，状态码：{response.status_code}, 响应内容：{response.text}"
+
+def test_try_unautorized_delete_group(headers):
+    # 尝试未经授权的删除群组
+    response = requests.delete(f"{GROUP_ENDPOINT}?GroupId={GROUP_ID}&UserId={WROING_ID}", headers=headers)
+    assert response.status_code == 403, f"状态码不正确，状态码：{response.status_code}, 响应内容：{response.text}"
+
+def test_delete_group(headers):
+    # 测试删除群组
+    response = requests.delete(f"{GROUP_ENDPOINT}?GroupId={GROUP_ID}&UserId={ID}", headers=headers)
+    assert response.status_code == 200, f"删除群组失败，状态码：{response.status_code}, 响应内容：{response.text}"
+
+# 删除用户放在最后，防止影响其他测试
 def test_delete_user(headers):
     # 测试删除用户
     response = requests.delete(DELETE, json=delete_user, headers=headers)
     assert response.status_code == 200, f"删除用户失败，状态码：{response.status_code}, 响应内容：{response.text}"
-
