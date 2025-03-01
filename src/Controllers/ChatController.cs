@@ -1,68 +1,75 @@
+using Microsoft.AspNetCore.Mvc;
 using System;
 using Herta.Utils.HertaWebsocketUtil;
 using Herta.Utils.WebsocketGroup;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http;
 using Herta.Exceptions.HttpException;
 using Herta.Utils.Logger;
-using Herta.Interfaces.IAuthService;
+using Herta.Models.DataModels.GroupMembers;
 using Herta.Interfaces.IGroupService;
+using Herta.Interfaces.IHertaWsGroup;
 using Herta.Decorators.Websocket;
 using NLog;
 
 namespace Herta.Controllers.ChatController;
 
 [ApiController]
-[Route("chat")]
-public class ChatController
+[Route("group/chat")]
+public class ChatController : ControllerBase
 {
-    private static readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(ChatController));
-    private readonly IAuthService _authService;
     private readonly IGroupService _groupService;
-    private HertaWsGroup _wsGroup = new HertaWsGroup();
+    private readonly IHertaWsGroup _wsGroup;
+    private static readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(ChatController));
 
-    public ChatController(IGroupService groupService, IAuthService authService) 
+    public ChatController(IGroupService groupService, IHertaWsGroup wsGroup) 
     {
         _groupService = groupService;
-        _authService = authService;
+        _wsGroup = wsGroup;
     }
 
     [Websocket("{groupId}")]
-    public async Task Chat(HertaWebsocket ws)
+    public async Task groupChat(HertaWebsocket ws)
     {
         if (ws.Parameters.GetValueOrDefault("userId", null) == null)
         {
             await ws.CloseAsync(1008, "缺少userId参数.");
             return;
         }
+        int groupId = int.Parse(ws.Parameters.GetValueOrDefault("groupId", "0")!);
+        int userId = int.Parse(ws.Parameters.GetValueOrDefault("userId", "0")!);
 
-        int groupId = int.Parse(ws.Parameters.GetValueOrDefault("groupId")!);
-        int userId = int.Parse(ws.Parameters.GetValueOrDefault("userId")!);
-        _logger.Debug($"User {userId} trying to join group {groupId}.");
-        Dictionary<string, object?> ConnMeta = new Dictionary<string, object?>
-        {
-            { "userId", userId },
-            { "groupId", groupId }
-        };
-        ws.Metadata = ConnMeta;
-        var member = await _groupService.GetGroupMemberAsync(groupId, userId);
+        _logger.Debug($"User {userId} trying to connect to group {groupId}.");
+
+        GroupMembers? member = await _groupService.GetGroupMemberAsync(groupId, userId);
+
         if (member == null)
         {
-            await ws.CloseAsync(1008, "用户不在该群中.");
+            await ws.CloseAsync(1008, "用户不在该群组中.");
+            return;
         }
+
         _wsGroup.AddToGroup(groupId, ws);
-        _logger.Debug($"User {userId} joined group {groupId}.");
 
-        ws.OnTextReceivedAsync += async (text) =>
+        try
         {
-            _logger.Debug($"Received message from {userId}: {text}");
-            await _wsGroup.BroadcastTextAsync(groupId, text);
-        };
-
-        ws.OnClosed += (sender, e) =>
+            while (ws.IsConnected())
+            {
+                var message = await ws.ReceiveTextAsync();
+                _logger.Info($"Received message: {message}");
+                await BroadcastMessageAsync(groupId, message);
+            }
+        }
+        catch (Exception ex)
         {
-            _logger.Debug($"User {userId} left group {groupId}.");
+            _logger.Error(ex, "WebSocket error.");
+        }
+        finally
+        {
             _wsGroup.RemoveFromGroup(groupId, ws);
-        };
+        }
+    }
+
+    private async Task BroadcastMessageAsync(int groupId, string message)
+    {
+        await _wsGroup.BroadcastTextAsync(groupId, message);
     }
 }

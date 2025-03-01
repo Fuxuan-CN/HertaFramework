@@ -20,7 +20,7 @@ namespace Herta.Controllers.GroupController;
 
 [ApiController]
 [Route("api/group")]
-public class GroupController
+public class GroupController : ControllerBase
 {
     private readonly IGroupService _groupService;
     private readonly IAuthService _authService;

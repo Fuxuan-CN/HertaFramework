@@ -13,7 +13,7 @@ namespace HerTa.Controllers.HelloController;
 [ApiController]
 [Route("api/hello")]
 public class HelloController : ControllerBase
-{
+{ 
     private static readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(HelloController));
 
     [HttpGet]

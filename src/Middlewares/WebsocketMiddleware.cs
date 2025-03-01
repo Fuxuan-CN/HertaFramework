@@ -117,7 +117,7 @@ public sealed class WebSocketMiddleware
                         var errMessage = $"{ex.GetType().Name}: {ex.Message}";
                         var logMsg = $"Websocket handler error: {errMessage}\n{errStackTraces}";
                         _logger.Error(logMsg);
-                        await HertaWs.CloseAsync(1001, "websocket handler error.");
+                        await HertaWs.CloseAsync(1001, "连接处理错误，请稍后重试。");
                     }
                     return; // 匹配成功后直接退出方法
                 }

@@ -8,12 +8,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Herta.Utils.HertaWebsocketUtil;
 using Herta.Models.Enums.WebsocketEnum;
+using Herta.Interfaces.IHertaWsGroup;
 using Herta.Utils.Logger;
+using Herta.Decorators.Services;
+using Microsoft.Extensions.DependencyInjection;
 using NLog;
 
 namespace Herta.Utils.WebsocketGroup;
 
-public class HertaWsGroup
+[Service(ServiceLifetime.Singleton)]
+public class HertaWsGroup : IHertaWsGroup
 {
     private readonly ConcurrentDictionary<int, List<HertaWebsocket>> _groups = new ConcurrentDictionary<int, List<HertaWebsocket>>();
     private readonly Timer _heartbeatTimer;
