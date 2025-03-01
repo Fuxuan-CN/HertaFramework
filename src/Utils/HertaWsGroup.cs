@@ -19,10 +19,11 @@ public class HertaWsGroup
     private readonly Timer _heartbeatTimer;
     private static readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(HertaWsGroup));
 
-    public HertaWsGroup()
+    public HertaWsGroup(TimeSpan? heartbeatInterval = null)
     {
         // 启动心跳机制，每30秒检查一次连接状态
-        _heartbeatTimer = new Timer(Heartbeat, null, 0, 30000);
+        var interval = heartbeatInterval.HasValue ? (int)heartbeatInterval.Value.TotalMilliseconds : 30000;
+        _heartbeatTimer = new Timer(Heartbeat, null, 0, interval);
     }
 
     /// <summary>

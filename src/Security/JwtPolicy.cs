@@ -26,13 +26,20 @@ public class JwtAuthorizationHandler : AuthorizationHandler<JwtRequirement>
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, JwtRequirement requirement)
     {
         var httpContext = context.Resource as HttpContext;
+        string token = "";
         var authHeaderStr = httpContext!.Request.Headers["Authorization"]!.ToString();
         if (string.IsNullOrEmpty(authHeaderStr))
         {
             context.Fail(Reason("Authorization 请求头缺失"));
         }
-
-        var token = authHeaderStr.Split("Bearer ")[1];
+        try
+        {
+            token = authHeaderStr.Split("Bearer ")[1];
+        }
+        catch (Exception)
+        {
+            context.Fail(Reason("Authorization 请求头格式错误"));
+        }
 
         if (string.IsNullOrEmpty(token))
         {

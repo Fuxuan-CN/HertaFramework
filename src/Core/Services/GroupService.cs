@@ -13,12 +13,13 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Herta.Decorators.Services;
 using Herta.Exceptions.HttpException;
+using Herta.Models.Forms.UpdateGroupForm;
 using Herta.Utils.Logger;
 using NLog;
 
 namespace Herta.Services.GroupService;
 
-[Service(ServiceLifetime.Scoped)]
+[Service]
 public class GroupService : IGroupService
 {
     private readonly ApplicationDbContext _context;
@@ -29,7 +30,7 @@ public class GroupService : IGroupService
         _context = context;
     }
 
-    public async Task<(bool success, int groupId)> CreateGroupAsync(Groups group, int? whatUserCreatedItId)
+    public async Task<(bool success, int groupId)> CreateGroupAsync(Groups group)
     {
         using (var transaction = _context.Database.BeginTransaction())
         {
@@ -38,22 +39,18 @@ public class GroupService : IGroupService
                 _logger.Trace($"创建群组: {group.GroupName}");
                 await _context.Groups.AddAsync(group);
                 await _context.SaveChangesAsync(); // 确保 group.Id 被分配
-                if (whatUserCreatedItId != null)
+                _logger.Trace($"用户: {group.OwnerId} 创建群组: {group.Id}");
+                var user = await _context.Users.FindAsync(group.OwnerId);
+                if (user == null) throw new HttpException(404, "没有找到创建者");
+
+                var groupMember = new GroupMembers
                 {
-                    _logger.Trace($"用户: {whatUserCreatedItId} 创建群组: {group.Id}");
-                    var user = await _context.Users.FindAsync(whatUserCreatedItId);
-                    if (user == null) throw new HttpException(404, "没有找到创建者");
+                    GroupId = group.Id,
+                    UserId = group.OwnerId,
+                    RoleIs = GroupRole.OWNER
+                };
 
-                    var groupMember = new GroupMembers
-                    {
-                        GroupId = group.Id,
-                        UserId = user.Id,
-                        RoleIs = GroupRole.OWNER
-                    };
-
-                    await AddMemberToGroupAsync(group.Id, groupMember);
-                }
-
+                await AddMemberToGroupAsync(group.Id, groupMember);
                 transaction.Commit();
                 return (true, group.Id);
             }
@@ -126,6 +123,35 @@ public class GroupService : IGroupService
         existingGroup.AvatarUrl = group.AvatarUrl;
         existingGroup.UpdatedAt = DateTime.UtcNow;
 
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateGroupPartAsync(UpdateGroupForm updates)
+    {
+        var group = await _context.Groups.FindAsync(updates.GroupId);
+        if (group == null) throw new HttpException(404, "没有找到该群聊");
+
+        var entity = _context.Entry(group);
+
+        if (updates.Fields == null) return true;
+
+        foreach (var (key, value) in updates.Fields)
+        {
+            var property = entity.Property(key);
+            var propertyType = property.Metadata.ClrType;
+
+            if (property != null)
+            {
+                property.CurrentValue = value.ToString();
+            }
+            else
+            {
+                throw new HttpException(400, "不能更新该字段，因为该字段不存在。");
+            }
+        }
+
+        group.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return true;
     }

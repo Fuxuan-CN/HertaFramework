@@ -67,7 +67,6 @@ public class UserController : ControllerBase
     }
 
     [HttpPost("change")]
-    [Authorize(Policy = "JwtAuth")]
     public async Task<Response> ChangePassword([FromBody] ChangePasswordForm form)
     {
         _logger.Info($"Changing password for user {form.Username}");

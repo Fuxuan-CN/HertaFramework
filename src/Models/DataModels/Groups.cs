@@ -13,6 +13,9 @@ public sealed class Groups
     public int Id { get; set; }
 
     [Required]
+    public int OwnerId { get; set; }
+
+    [Required]
     public required string GroupName { get; set; }
 
     [Required]

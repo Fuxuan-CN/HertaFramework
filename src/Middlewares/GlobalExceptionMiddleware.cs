@@ -43,12 +43,20 @@ public sealed class GlobalExceptionHandlerMiddleware
 
     private async Task HandleHttpException(HttpContext context, HttpException httpException)
     {
+        Exception? innerException = httpException.InnerException;
+        if (innerException is not null)
+        {
+            string extraStackTrace = innerException.StackTrace!;
+            string InnerMsg = innerException.Message;
+            string ErrMsg = $"发生了 HTTP 异常: 自定义原因：({httpException.Detail}), 由内部异常 {innerException.GetType().Name} 引发，内部异常信息: {InnerMsg}\n，堆栈信息如下：\n{extraStackTrace}";
+            _logger.Error(ErrMsg);
+        }
         string errMsg = $"{httpException.StatusCode} {httpException.Detail} {httpException.Message}";
         string requestInfo = $"Request: {context.Request.Method} {context.Request.Path} from {context.Connection.RemoteIpAddress}";
 
         var response = new
         {
-            message = httpException.ErrMessage ?? $"{httpException.Detail}: {httpException.ErrMessage}"
+            message = httpException.ErrMessage != null? httpException.ErrMessage : $"{httpException.Detail}: {httpException.ErrMessage}"
         };
 
         context.Response.Clear();

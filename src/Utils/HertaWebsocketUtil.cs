@@ -21,7 +21,7 @@ public sealed class HertaWebsocket : IDisposable
     private readonly Guid _id = Guid.NewGuid();
     private readonly object _stateLock = new object();
     public Dictionary<string, string?> Parameters { get; set; }
-    public Dictionary<string, string?>? Metadata { get; set; }
+    public Dictionary<string, object?>? Metadata { get; set; }
     // Events
     public event Func<string, Task>? OnTextReceivedAsync;
     public event Func<byte[], Task>? OnBinaryReceivedAsync;
@@ -29,7 +29,7 @@ public sealed class HertaWebsocket : IDisposable
     public event EventHandler<WebSocketCloseStatus>? OnClosed;
     public event EventHandler? OnConnected;
 
-    public HertaWebsocket(WebSocket webSocket, Dictionary<string, string?> parameters, Dictionary<string, string?>? metadata = null)
+    public HertaWebsocket(WebSocket webSocket, Dictionary<string, string?> parameters, Dictionary<string, object?>? metadata = null)
     {
         _webSocket = webSocket;
         _buffer = new ArraySegment<byte>(new byte[8192]); // Default buffer size
@@ -38,9 +38,6 @@ public sealed class HertaWebsocket : IDisposable
         Parameters = parameters;
         Metadata = metadata;
         OnConnected?.Invoke(this, EventArgs.Empty);
-
-        // Start heartbeat
-        _ = HeartbeatAsync(CancellationToken.None);
     }
 
     public bool IsConnected()
@@ -228,26 +225,5 @@ public sealed class HertaWebsocket : IDisposable
     public void Dispose()
     {
         _webSocket?.Dispose();
-    }
-
-    // Heartbeat mechanism
-    private async Task HeartbeatAsync(CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            if (IsConnected())
-            {
-                try
-                {
-                    await SendAsync(new byte[0], WebSocketMessageType.Text, true, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Warn($"Heartbeat failed: {ex.Message}");
-                    OnError?.Invoke(this, ex);
-                }
-            }
-            await Task.Delay(30000, cancellationToken); // 每30秒发送一次心跳
-        }
     }
 }
