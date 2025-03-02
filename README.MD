@@ -3,8 +3,8 @@
 
 ## 语言选择
 
-- [English](README.EN.md)
-- [中文](README.md)
+- [English](README.EN.MD)
+- [中文](README.MD)
 
 ## 介绍
 
