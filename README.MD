@@ -1,6 +1,11 @@
 
 # Herta Framework
 
+## 语言选择
+
+- [English](README.EN.md)
+- [中文](README.md)
+
 ## 介绍
 
 Herta 是一个基于 ASP.NET Core 的开源框架，旨在简化 Web API 和 WebSocket 的开发。通过自动发现和注册服务、全局异常处理、自定义响应机制以及 WebSocket 的简化开发，Herta 提供了一个高效、灵活且易于使用的开发环境。
