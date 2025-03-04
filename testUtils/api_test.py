@@ -13,7 +13,7 @@ GROUP_ENDPOINT = f"{BASE}/group"
 MEMBER_ENDPOINT = f"{GROUP_ENDPOINT}/member"
 
 ID: int = 4
-WROING_ID: int = ID + 1
+WRONG_ID: int = ID + 1
 GROUP_ID: int = ID
 
 join_group_form = {
@@ -24,13 +24,13 @@ join_group_form = {
 
 unauthorized_join_group_form = {
     "GroupId": GROUP_ID,
-    "UserId": WROING_ID,
+    "UserId": WRONG_ID,
     "JoinAbout": "I want to join this group"
 }
 
 unauthorized_leave_group_form = {
     "GroupId": GROUP_ID,
-    "UserId": WROING_ID,
+    "UserId": WRONG_ID,
     "Reason": "I don't want to join this group"
 }
 
@@ -47,13 +47,13 @@ create_group_form = {
 }
 
 unauthorized_create_group_form = {
-    "OwnerId": WROING_ID,
+    "OwnerId": WRONG_ID,
     "GroupName": "testGroup",
     "Description": "this is a test group"
 }
 
 update_group_unauthorized_form = {
-    "OwnerId": WROING_ID,
+    "OwnerId": WRONG_ID,
     "Fields": {
         "GroupName": "testGroup2",
         "Description": "this is a test group2"
@@ -90,7 +90,7 @@ login_data = {
 # 错误登录数据
 wrong_login_data = {
     "username": "testUser",
-    "password": "wrongpassword"
+    "password": "wrongPassword"
 }
 
 wrong_data_body = {
@@ -224,9 +224,9 @@ def test_try_unauthorized_update_group_info(headers):
     response = requests.patch(f"{GROUP_ENDPOINT}", json=update_group_unauthorized_form, headers=headers)
     assert response.status_code == 403, f"状态码不正确，状态码：{response.status_code}, 响应内容：{response.text}"
 
-def test_try_unautorized_delete_group(headers):
+def test_try_unauthorized_delete_group(headers):
     # 尝试未经授权的删除群组
-    response = requests.delete(f"{GROUP_ENDPOINT}?GroupId={GROUP_ID}&UserId={WROING_ID}", headers=headers)
+    response = requests.delete(f"{GROUP_ENDPOINT}?GroupId={GROUP_ID}&UserId={WRONG_ID}", headers=headers)
     assert response.status_code == 403, f"状态码不正确，状态码：{response.status_code}, 响应内容：{response.text}"
 
 def test_delete_group(headers):
