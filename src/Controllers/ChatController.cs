@@ -26,6 +26,17 @@ public class ChatController : ControllerBase
         _wsGroup = wsGroup;
     }
 
+    private async Task<bool> CheckGroupExists(int groupId, int userId)
+    {
+        GroupMembers? member = await _groupService.GetGroupMemberAsync(groupId, userId);
+
+        if (member == null)
+        {
+            return false;
+        }
+        return true;
+    }
+
     [Websocket("{groupId}")]
     public async Task groupChat(HertaWebsocket ws)
     {
@@ -39,11 +50,10 @@ public class ChatController : ControllerBase
 
         _logger.Debug($"User {userId} trying to connect to group {groupId}.");
 
-        GroupMembers? member = await _groupService.GetGroupMemberAsync(groupId, userId);
-
-        if (member == null)
+        var memberExists = await CheckGroupExists(groupId, userId);
+        if (!memberExists)
         {
-            await ws.CloseAsync(1008, "user not in group.");
+            await ws.CloseAsync(1008, "User is not a member of the group.");
             return;
         }
 
