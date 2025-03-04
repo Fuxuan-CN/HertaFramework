@@ -42,6 +42,7 @@ public class FileController : ControllerBase
     public async Task<FileResponse> GetFile([FromRoute] string userId, [FromRoute] string fileName)
     {
         string filePath = await _fileService.GetFilePathAsync(userId, fileName);
+        _logger.Debug($"Try get file {filePath}.");
         return new FileResponse(fileName, filePath);
     }
 
@@ -49,6 +50,7 @@ public class FileController : ControllerBase
     [Authorize(Policy = "JwtAuth")]
     public async Task<Response> UploadFile(string userId, string fileName, IFormFile file)
     {
+        _logger.Debug($"Try upload file {fileName}.");
         await AllowAccess(userId);
         var fileStream = file.OpenReadStream();
         await _fileService.SaveFileFromStreamAsync(userId, fileName, fileStream);
@@ -59,6 +61,7 @@ public class FileController : ControllerBase
     [Authorize(Policy = "JwtAuth")]
     public async Task<Response> DeleteFile(string userId, string fileName)
     {
+        _logger.Debug($"Try delete file {fileName}.");
         await AllowAccess(userId);
         await _fileService.DeleteFileAsync(userId, fileName);
         return new Response("File deleted successfully");
