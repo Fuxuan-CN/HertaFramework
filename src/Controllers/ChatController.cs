@@ -18,13 +18,12 @@ public class ChatController : ControllerBase
 {
     private readonly IGroupService _groupService;
     private readonly IHertaWsGroup _wsGroup;
-    private static readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(ChatController));
+    private readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(ChatController));
 
     public ChatController(IGroupService groupService, IHertaWsGroup wsGroup) 
     {
         _groupService = groupService;
         _wsGroup = wsGroup;
-        _logger.Info("ChatController created.");
     }
 
     [Websocket("{groupId}")]

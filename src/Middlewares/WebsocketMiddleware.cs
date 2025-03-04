@@ -99,7 +99,7 @@ public sealed class WebSocketMiddleware
                     _logger.Trace($"Matched WebSocket path: {fullWebsocketPath} with parameters: {string.Join(", ", parameters.Select(p => $"{p.Key}={p.Value}"))}");
 
                     var controllerType = item.Descriptor.ControllerTypeInfo.AsType();
-                    var controller = context.RequestServices.GetService(controllerType);
+                    var controller = ActivatorUtilities.CreateInstance(context.RequestServices, controllerType);
 
                     WebSocket webSocket = await context.WebSockets.AcceptWebSocketAsync();
                     var HertaWs = new HertaWebsocket(webSocket!, parameters);
