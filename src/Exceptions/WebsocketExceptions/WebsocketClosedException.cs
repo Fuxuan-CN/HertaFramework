@@ -1,8 +1,7 @@
 
 using System;
-using Herta.Exceptions.WebsocketExceptions.WebsocketException;
 
-namespace Herta.Exceptions.WebsocketExceprions.WebsocketClosedException;
+namespace Herta.Exceptions.WebsocketExceptions;
 
 public sealed class WebsocketClosedException : WebsocketException
 // raise when there is an error with the websocket connection

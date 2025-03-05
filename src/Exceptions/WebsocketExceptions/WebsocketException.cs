@@ -2,7 +2,7 @@
 using System;
 using Herta.Exceptions.HertaException;
 
-namespace Herta.Exceptions.WebsocketExceptions.WebsocketException;
+namespace Herta.Exceptions.WebsocketExceptions;
 
 public class WebsocketException : HertaBaseException
 // raise when there is an error with the websocket connection

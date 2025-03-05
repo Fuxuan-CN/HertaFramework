@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Herta.Models.Enums.WebsocketEnum;
 using Herta.Utils.Logger;
-using Herta.Exceptions.WebsocketExceptions.WebsocketClosedException;
+using Herta.Exceptions.WebsocketExceptions;
 using NLog;
 
 namespace Herta.Utils.HertaWebsocketUtil;
@@ -21,7 +21,6 @@ public sealed class HertaWebsocket : IDisposable
     private readonly Guid _id = Guid.NewGuid();
     private readonly object _stateLock = new object();
     public Dictionary<string, string?> Parameters { get; set; }
-    public Dictionary<string, object?>? Metadata { get; set; }
     // Events
     public event Func<string, Task>? OnTextReceivedAsync;
     public event Func<byte[], Task>? OnBinaryReceivedAsync;
@@ -29,14 +28,13 @@ public sealed class HertaWebsocket : IDisposable
     public event EventHandler<WebSocketCloseStatus>? OnClosed;
     public event EventHandler? OnConnected;
 
-    public HertaWebsocket(WebSocket webSocket, Dictionary<string, string?> parameters, Dictionary<string, object?>? metadata = null)
+    public HertaWebsocket(WebSocket webSocket, Dictionary<string, string?> parameters)
     {
         _webSocket = webSocket;
         _buffer = new ArraySegment<byte>(new byte[8192]); // Default buffer size
         _state = WebsocketState.Connected;
         _logger.Trace($"Websocket created. Id: {_id}");
         Parameters = parameters;
-        Metadata = metadata;
         OnConnected?.Invoke(this, EventArgs.Empty);
     }
 
