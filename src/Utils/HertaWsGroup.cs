@@ -85,13 +85,13 @@ public class HertaWsGroup : IHertaWsGroup
     /// </summary>
     /// <param name="groupId">群组 ID</param>
     /// <param name="message">消息内容</param>
-    public async Task BroadcastTextAsync(int groupId, string message)
+    public async Task BroadcastTextAsync(int groupId, string message, Guid senderId)
     {
         if (_groups.ContainsKey(groupId))
         {
             foreach (var ws in _groups[groupId])
             {
-                if (ws.IsConnected())
+                if (ws.IsConnected() && ws.Id!= senderId)
                 {
                     await ws.SendTextAsync(message);
                 }
@@ -104,13 +104,13 @@ public class HertaWsGroup : IHertaWsGroup
     /// </summary>
     /// <param name="groupId">群组 ID</param>
     /// <param name="data">消息数据</param>
-    public async Task BroadcastJsonAsync<T>(int groupId, T data)
+    public async Task BroadcastJsonAsync<T>(int groupId, T data, Guid senderId)
     {
         if (_groups.ContainsKey(groupId))
         {
             foreach (var ws in _groups[groupId])
             {
-                if (ws.IsConnected())
+                if (ws.IsConnected() && ws.Id!= senderId)
                 {
                     await ws.SendJsonAsync(data);
                 }

@@ -11,7 +11,7 @@ public interface IHertaWsGroup
     void RemoveFromGroup(int groupId, HertaWebsocket ws);
     int GetGroupConnectionCount(int groupId);
     List<HertaWebsocket> GetGroupConnections(int groupId);
-    Task BroadcastTextAsync(int groupId, string message);
-    Task BroadcastJsonAsync<T>(int groupId, T data);
+    Task BroadcastTextAsync(int groupId, string message, Guid senderID);
+    Task BroadcastJsonAsync<T>(int groupId, T data, Guid senderID);
     void Cleanup();
 }

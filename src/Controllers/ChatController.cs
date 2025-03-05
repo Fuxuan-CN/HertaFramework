@@ -65,7 +65,7 @@ public class ChatController : ControllerBase
             {
                 var message = await ws.ReceiveTextAsync();
                 _logger.Info($"Received message: {message}");
-                await BroadcastMessageAsync(groupId, message);
+                await BroadcastMessageAsync(groupId, message, ws.Id);
             }
         }
         catch (Exception ex)
@@ -78,8 +78,8 @@ public class ChatController : ControllerBase
         }
     }
 
-    private async Task BroadcastMessageAsync(int groupId, string message)
+    private async Task BroadcastMessageAsync(int groupId, string message, Guid senderId)
     {
-        await _wsGroup.BroadcastTextAsync(groupId, message);
+        await _wsGroup.BroadcastTextAsync(groupId, message, senderId);
     }
 }

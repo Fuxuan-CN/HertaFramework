@@ -21,6 +21,17 @@ public sealed class HertaWebsocket : IDisposable
     private readonly Guid _id = Guid.NewGuid();
     private readonly object _stateLock = new object();
     public Dictionary<string, string?> Parameters { get; set; }
+    public Guid Id => _id;
+    public WebsocketState State
+    {
+        get
+        {
+            lock (_stateLock)
+            {
+                return _state;
+            }
+        }
+    }
     // Events
     public event Func<string, Task>? OnTextReceivedAsync;
     public event Func<byte[], Task>? OnBinaryReceivedAsync;
@@ -144,17 +155,6 @@ public sealed class HertaWebsocket : IDisposable
                 return data;
             }
         }, "Receiving binary data");
-    }
-
-    public WebsocketState State
-    {
-        get
-        {
-            lock (_stateLock)
-            {
-                return _state;
-            }
-        }
     }
 
     private T ReadStateWithLock<T>(Func<WebsocketState, T> stateCheckFunc)
