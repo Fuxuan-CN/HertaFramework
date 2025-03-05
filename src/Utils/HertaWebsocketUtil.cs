@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Herta.Models.Enums.WebsocketEnum;
 using Herta.Utils.Logger;
-using Herta.Exceptions.WebsocketExceprions.WebsocketClosedException;
+using Herta.Exceptions.WebsocketExceptions.WebsocketClosedException;
 using NLog;
 
 namespace Herta.Utils.HertaWebsocketUtil;
