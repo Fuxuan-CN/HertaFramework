@@ -83,6 +83,22 @@ public struct Range : IEnumerable<int>, IReadOnlyList<int>
         return new Range(_stop - 1, _start - 1, -_step);
     }
 
+    public bool IsContainedIn(Range other)
+    {
+        if (this.Step > 0 && other.Step > 0)
+        {
+            return this.Start >= other.Start && this.Stop <= other.Stop && this.Step % other.Step == 0;
+        }
+        else if (this.Step < 0 && other.Step < 0)
+        {
+            return this.Start <= other.Start && this.Stop >= other.Stop && this.Step % other.Step == 0;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
     public override string ToString()
     {
         return $"Range(start: {_start}, stop: {_stop}, step: {_step})";
