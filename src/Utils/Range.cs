@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Herta.Utils.Range;
 
-public struct Range : IEnumerable<int>
+public struct Range : IEnumerable<int>, IReadOnlyList<int>
 {
     private readonly int _start;
     private readonly int _stop;
@@ -13,6 +13,16 @@ public struct Range : IEnumerable<int>
     public int Start => _start;
     public int Stop => _stop;
     public int Step => _step;
+    public int Count
+    {
+        get
+        {
+            if (_step > 0)
+                return Math.Max(0, (_stop - _start + _step - 1) / _step);
+            else
+                return Math.Max(0, (_start - _stop + (-_step) - 1) / (-_step));
+        }
+    }
 
     public Range(int start, int stop, int step = 1)
     {
@@ -48,6 +58,29 @@ public struct Range : IEnumerable<int>
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
+    }
+
+    public int this[int index]
+    {
+        get
+        {
+            if (index < 0 || index >= Count)
+                throw new ArgumentOutOfRangeException(nameof(index));
+            return _start + index * _step;
+        }
+    }
+
+    public bool Contains(int value)
+    {
+        if (_step > 0)
+            return value >= _start && value < _stop && (value - _start) % _step == 0;
+        else
+            return value <= _start && value > _stop && (value - _start) % _step == 0;
+    }
+
+    public Range Reverse()
+    {
+        return new Range(_stop - 1, _start - 1, -_step);
     }
 
     public override string ToString()
