@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Herta.Utils.Range;
+namespace Utils;
 
 public struct Range : IEnumerable<int>, IReadOnlyList<int>
 {
@@ -32,6 +32,11 @@ public struct Range : IEnumerable<int>, IReadOnlyList<int>
         _start = start;
         _stop = stop;
         _step = step;
+    }
+
+    public Range(int stop) : this(0, stop)
+    {
+        // empty range
     }
 
     public IEnumerator<int> GetEnumerator()
