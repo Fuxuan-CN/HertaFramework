@@ -36,6 +36,9 @@ public struct Range : IEnumerable<int>, IReadOnlyList<int>
 
     public IEnumerator<int> GetEnumerator()
     {
+        if (_start == _stop)
+            yield break;
+
         int current = _start;
         if (_step > 0)
         {
@@ -80,18 +83,25 @@ public struct Range : IEnumerable<int>, IReadOnlyList<int>
 
     public Range Reverse()
     {
-        return new Range(_stop - 1, _start - 1, -_step);
+        if (_step > 0)
+        {
+            return new Range(_stop - 1, _start - 1, -_step);
+        }
+        else
+        {
+            return new Range(_stop + 1, _start + 1, -_step);
+        }
     }
 
     public bool IsContainedIn(Range other)
     {
         if (this.Step > 0 && other.Step > 0)
         {
-            return this.Start >= other.Start && this.Stop <= other.Stop && this.Step % other.Step == 0;
+            return this.Start >= other.Start && this.Stop <= other.Stop && (this.Step % other.Step == 0 || this.Step == other.Step);
         }
         else if (this.Step < 0 && other.Step < 0)
         {
-            return this.Start <= other.Start && this.Stop >= other.Stop && this.Step % other.Step == 0;
+            return this.Start <= other.Start && this.Stop >= other.Stop && (this.Step % other.Step == 0 || this.Step == other.Step);
         }
         else
         {
