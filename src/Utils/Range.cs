@@ -2,9 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Utils;
+namespace Herta.Utils.Range;
 
-public struct Range : IEnumerable<int>, IReadOnlyList<int>
+public readonly struct Range : IEnumerable<int>, IReadOnlyList<int>
 {
     private readonly int _start;
     private readonly int _stop;
