@@ -118,4 +118,21 @@ public struct Range : IEnumerable<int>, IReadOnlyList<int>
     {
         return $"Range(start: {_start}, stop: {_stop}, step: {_step})";
     }
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is Range other)
+        {
+            return _start == other._start && _stop == other._stop && _step == other._step;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(_start, _stop, _step);
+    }
 }
