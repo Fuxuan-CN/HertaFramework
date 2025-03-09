@@ -2,25 +2,46 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Herta.Utils.Range;
+namespace Herta.Utils.RangeTest;
+
+internal readonly struct RangeStartStop
+{
+    public readonly int Start;
+    public readonly int Stop;
+
+    public RangeStartStop(int start, int stop)
+    {
+        Start = start;
+        Stop = stop;
+    }
+}
+
+internal readonly struct RangeStep
+{
+    public readonly int Step;
+
+    public RangeStep(int step)
+    {
+        Step = step;
+    }
+}
 
 public readonly struct Range : IEnumerable<int>, IReadOnlyList<int>
 {
-    private readonly int _start;
-    private readonly int _stop;
-    private readonly int _step;
+    private readonly RangeStartStop _startStop;
+    private readonly RangeStep _step;
 
-    public int Start => _start;
-    public int Stop => _stop;
-    public int Step => _step;
+    public int Start => _startStop.Start;
+    public int Stop => _startStop.Stop;
+    public int Step => _step.Step;
     public int Count
     {
         get
         {
-            if (_step > 0)
-                return Math.Max(0, (_stop - _start + _step - 1) / _step);
+            if (Start > 0)
+                return Math.Max(0, (Stop - Start + Step - 1) / Step);
             else
-                return Math.Max(0, (_start - _stop + (-_step) - 1) / (-_step));
+                return Math.Max(0, (Start - Stop + (-Step) - 1) / (-Step));
         }
     }
 
@@ -29,9 +50,8 @@ public readonly struct Range : IEnumerable<int>, IReadOnlyList<int>
         if (step == 0)
             throw new ArgumentException("Step cannot be zero. Please provide a non-zero step value.", nameof(step));
 
-        _start = start;
-        _stop = stop;
-        _step = step;
+        _startStop = new RangeStartStop(start, stop);
+        _step = new RangeStep(step);
     }
 
     public Range(int stop) : this(0, stop, stop > 0 ? 1 : -1) { }
@@ -40,24 +60,24 @@ public readonly struct Range : IEnumerable<int>, IReadOnlyList<int>
 
     public IEnumerator<int> GetEnumerator()
     {
-        if (_start == _stop)
+        if (Start == Stop)
             yield break;
 
-        int current = _start;
-        if (_step > 0)
+        int current = Start;
+        if (Step > 0)
         {
-            while (current < _stop)
+            while (current < Stop)
             {
                 yield return current;
-                current += _step;
+                current += Step;
             }
         }
         else
         {
-            while (current > _stop)
+            while (current > Stop)
             {
                 yield return current;
-                current += _step;
+                current += Step;
             }
         }
     }
@@ -73,30 +93,31 @@ public readonly struct Range : IEnumerable<int>, IReadOnlyList<int>
         {
             if (index < 0 || index >= Count)
                 throw new ArgumentOutOfRangeException(nameof(index));
-            return _start + index * _step;
+            return Start + index * Step;
         }
     }
 
     public bool Contains(int value)
     {
-        if (_step > 0)
-            return value >= _start && value < _stop && (value - _start) % _step == 0;
+        if (Step > 0)
+            return value >= Start && value < Stop && (value - Start) % Step == 0;
         else
-            return value <= _start && value > _stop && (value - _start) % _step == 0;
+            return value <= Start && value > Stop && (value - Start) % Step == 0;
     }
 
     public Range Reverse()
     {
-        if (_step > 0)
+        if (Step > 0)
         {
-            return new Range(_stop - 1, _start - 1, -_step);
+            return new Range(Stop - 1, Start - 1, -Step);
         }
         else
         {
-            return new Range(_stop + 1, _start + 1, -_step);
+            return new Range(Stop + 1, Start + 1, -Step);
         }
     }
 
+    // 判断是否包含在另一个范围中
     public bool IsContainedIn(Range other)
     {
         if (this.Step > 0 && other.Step > 0)
@@ -113,51 +134,16 @@ public readonly struct Range : IEnumerable<int>, IReadOnlyList<int>
         }
     }
 
-    public Range Intersect(Range other)
-    {
-        int start = Math.Max(this.Start, other.Start);
-        int stop = Math.Min(this.Stop, other.Stop);
-        int step = Math.Max(this.Step, other.Step);
-
-        if (start >= stop) return new Range(0, 0); // 返回空范围
-        return new Range(start, stop, step);
-    }
-
-    public Range Union(Range other)
-    {
-        int start = Math.Min(this.Start, other.Start);
-        int stop = Math.Max(this.Stop, other.Stop);
-        int step = Math.Min(this.Step, other.Step);
-
-        return new Range(start, stop, step);
-    }
-
-    public Range Difference(Range other)
-    {
-        if (this.IsContainedIn(other)) return new Range(0, 0); // 返回空范围
-        return this;
-    }
-
-    public bool Intersects(Range other)
-    {
-        return this.Start < other.Stop && other.Start < this.Stop;
-    }
-
-    public bool IsDisjointFrom(Range other)
-    {
-        return this.Start >= other.Stop || other.Start >= this.Stop;
-    }
-
     public override string ToString()
     {
-        return $"Range(start: {_start}, stop: {_stop}, step: {_step})";
+        return $"Range(start: {Start}, stop: {Stop}, step: {Step})";
     }
 
     public override bool Equals(object? obj)
     {
         if (obj is Range other)
         {
-            return _start == other._start && _stop == other._stop && _step == other._step;
+            return Start == other.Start && Stop == other.Stop && Step == other.Step;
         }
         else
         {
@@ -167,6 +153,6 @@ public readonly struct Range : IEnumerable<int>, IReadOnlyList<int>
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(_start, _stop, _step);
+        return HashCode.Combine(Start, Stop, Step);
     }
 }
