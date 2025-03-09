@@ -27,17 +27,16 @@ public readonly struct Range : IEnumerable<int>, IReadOnlyList<int>
     public Range(int start, int stop, int step = 1)
     {
         if (step == 0)
-            throw new ArgumentException("Step cannot be zero.", nameof(step));
+            throw new ArgumentException("Step cannot be zero. Please provide a non-zero step value.", nameof(step));
 
         _start = start;
         _stop = stop;
         _step = step;
     }
 
-    public Range(int stop) : this(0, stop)
-    {
-        // empty range
-    }
+    public Range(int stop) : this(0, stop, stop > 0 ? 1 : -1) { }
+
+    public Range(Range other) : this(other.Start, other.Stop, other.Step) { }
 
     public IEnumerator<int> GetEnumerator()
     {
@@ -112,6 +111,41 @@ public readonly struct Range : IEnumerable<int>, IReadOnlyList<int>
         {
             return false;
         }
+    }
+
+    public Range Intersect(Range other)
+    {
+        int start = Math.Max(this.Start, other.Start);
+        int stop = Math.Min(this.Stop, other.Stop);
+        int step = Math.Max(this.Step, other.Step);
+
+        if (start >= stop) return new Range(0, 0); // 返回空范围
+        return new Range(start, stop, step);
+    }
+
+    public Range Union(Range other)
+    {
+        int start = Math.Min(this.Start, other.Start);
+        int stop = Math.Max(this.Stop, other.Stop);
+        int step = Math.Min(this.Step, other.Step);
+
+        return new Range(start, stop, step);
+    }
+
+    public Range Difference(Range other)
+    {
+        if (this.IsContainedIn(other)) return new Range(0, 0); // 返回空范围
+        return this;
+    }
+
+    public bool Intersects(Range other)
+    {
+        return this.Start < other.Stop && other.Start < this.Stop;
+    }
+
+    public bool IsDisjointFrom(Range other)
+    {
+        return this.Start >= other.Stop || other.Start >= this.Stop;
     }
 
     public override string ToString()
