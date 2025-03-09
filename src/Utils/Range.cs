@@ -4,6 +4,54 @@ using System.Collections.Generic;
 
 namespace Herta.Utils.RangeTest;
 
+internal struct RangeEnumerator : IEnumerator<int>
+{
+    private int current;
+    private readonly int start;
+    private readonly int stop;
+    private readonly int step;
+
+    public RangeEnumerator(int start, int stop, int step)
+    {
+        this.current = start - (step == 1 ? 1 : -1);
+        this.start = start;
+        this.stop = stop;
+        this.step = step;
+    }
+
+    public bool MoveNext()
+    {
+        if (step > 0)
+        {
+            if (current < stop)
+            {
+                current += step;
+                return current <= stop;
+            }
+        }
+        else
+        {
+            if (current > stop)
+            {
+                current += step;
+                return current >= stop;
+            }
+        }
+        return false;
+    }
+
+    public int Current => current;
+
+    object IEnumerator.Current => Current;
+
+    public void Reset()
+    {
+        current = start - (step == 1 ? 1 : -1);
+    }
+
+    public void Dispose() { }
+}
+
 internal readonly struct RangeStartStop
 {
     public readonly int Start;
@@ -60,26 +108,7 @@ public readonly struct Range : IEnumerable<int>, IReadOnlyList<int>
 
     public IEnumerator<int> GetEnumerator()
     {
-        if (Start == Stop)
-            yield break;
-
-        int current = Start;
-        if (Step > 0)
-        {
-            while (current < Stop)
-            {
-                yield return current;
-                current += Step;
-            }
-        }
-        else
-        {
-            while (current > Stop)
-            {
-                yield return current;
-                current += Step;
-            }
-        }
+        return new RangeEnumerator(Start, Stop, Step);
     }
 
     IEnumerator IEnumerable.GetEnumerator()
