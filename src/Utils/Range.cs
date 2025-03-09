@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Herta.Utils.RangeTest;
+namespace Herta.Utils.Range;
 
 internal struct RangeEnumerator : IEnumerator<int>
 {
