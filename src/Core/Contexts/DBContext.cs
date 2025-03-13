@@ -12,9 +12,6 @@ namespace Herta.Core.Contexts.DBContext;
 
 public class ApplicationDbContext : DbContext
 {
-    //events
-    public event EventHandler<User>? OnUserAdded;
-    public event EventHandler<User>? OnUserDeleted;
     // DbSets
     public DbSet<User> Users { get; set; }
     public DbSet<UserInfo> UserInfos { get; set; }
@@ -34,28 +31,5 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<GroupMembers>()
             .Property(gm => gm.RoleIs)
             .HasConversion<string>();
-    }
-
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        var result = await base.SaveChangesAsync(cancellationToken);
-
-        var addedUsers = ChangeTracker.Entries<User>()
-        .Where(e => e.State == EntityState.Added)
-        .Select(e => e.Entity);
-        foreach (var user in addedUsers)
-        {
-            OnUserAdded?.Invoke(this, user);
-        }
-
-        var deletedUsers = ChangeTracker.Entries<User>()
-        .Where(e => e.State == EntityState.Deleted)
-        .Select(e => e.Entity);
-        foreach (var user in deletedUsers)
-        {
-            OnUserDeleted?.Invoke(this, user);
-        }
-
-        return result;
     }
 }

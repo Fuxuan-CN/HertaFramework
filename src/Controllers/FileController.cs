@@ -30,7 +30,7 @@ public class FileController : ControllerBase
         _authService = authService;
     }
 
-    private async Task AllowAccess(string userId)
+    private async Task AllowAccess(int userId)
     {
         if (!await _authService.ValidateUserAsync(userId))
         {
@@ -39,7 +39,7 @@ public class FileController : ControllerBase
     }
 
     [HttpGet("{userId}/{fileName}")]
-    public async Task<FileResponse> GetFile([FromRoute] string userId, [FromRoute] string fileName)
+    public async Task<FileResponse> GetFile([FromRoute] int userId, [FromRoute] string fileName)
     {
         string filePath = await _fileService.GetFilePathAsync(userId, fileName);
         _logger.Debug($"Try get file {filePath}.");
@@ -48,7 +48,7 @@ public class FileController : ControllerBase
 
     [HttpPut("{userId}/{fileName}")]
     [Authorize(Policy = "JwtAuth")]
-    public async Task<Response> UploadFile(string userId, string fileName, IFormFile file)
+    public async Task<Response> UploadFile([FromRoute] int userId, [FromRoute] string fileName, IFormFile file)
     {
         _logger.Debug($"Try upload file {fileName}.");
         await AllowAccess(userId);
@@ -59,7 +59,7 @@ public class FileController : ControllerBase
 
     [HttpDelete("{userId}/{fileName}")]
     [Authorize(Policy = "JwtAuth")]
-    public async Task<Response> DeleteFile(string userId, string fileName)
+    public async Task<Response> DeleteFile([FromRoute] int userId, [FromRoute] string fileName)
     {
         _logger.Debug($"Try delete file {fileName}.");
         await AllowAccess(userId);

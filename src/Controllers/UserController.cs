@@ -90,7 +90,7 @@ public class UserController : ControllerBase
     {
         _logger.Info($"Updating user info");
         ValidateData();
-        var vialed = await _authService.ValidateUserAsync(userInfo.UserId.ToString());
+        var vialed = await _authService.ValidateUserAsync(userInfo.UserId);
         if (!vialed)
         {
             throw new HttpException(StatusCodes.Status403Forbidden, "unauthorized access.");
@@ -105,7 +105,7 @@ public class UserController : ControllerBase
     {
         _logger.Info($"Partial updating user info.");
         ValidateData();
-        var vialed = await _authService.ValidateUserAsync(userInfo.UserId.ToString());
+        var vialed = await _authService.ValidateUserAsync(userInfo.UserId);
         if (!vialed)
         {
             throw new HttpException(StatusCodes.Status403Forbidden, "unauthorized access.");

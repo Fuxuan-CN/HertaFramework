@@ -32,7 +32,7 @@ public class GroupController : ControllerBase
         _authService = authService;
     }
 
-    private async Task AllowAccess(string userId)
+    private async Task AllowAccess(int userId)
     {
         if (!await _authService.ValidateUserAsync(userId))
         {
@@ -57,7 +57,7 @@ public class GroupController : ControllerBase
     public async Task<Response> CreateGroup([FromBody] CreateGroupForm form)
     {
         _logger.Info($"Creating group {form.GroupName}");
-        await AllowAccess(form.OwnerId.ToString());
+        await AllowAccess(form.OwnerId);
         var group = new Groups
         {
             OwnerId = form.OwnerId,
@@ -74,7 +74,7 @@ public class GroupController : ControllerBase
     public async Task<Response> UpdateGroup([FromBody] Groups group)
     {
         _logger.Info($"Updating group {group.Id}");
-        await AllowAccess(group.OwnerId.ToString());
+        await AllowAccess(group.OwnerId);
         await _groupService.UpdateGroupAsync(group);
         return new Response(new { message = "group update success" });
     }
@@ -84,7 +84,7 @@ public class GroupController : ControllerBase
     public async Task<Response> UpdateGroupPart([FromBody] UpdateGroupForm form)
     {
         _logger.Info($"Updating part of group {form.GroupId}");
-        await AllowAccess(form.OwnerId.ToString());
+        await AllowAccess(form.OwnerId);
         var group = await _groupService.GetGroupAsync(form.GroupId);
         if (group == null)
         {
@@ -106,7 +106,7 @@ public class GroupController : ControllerBase
     public async Task<Response> DeleteGroup([FromQuery] int groupId, [FromQuery] int userId)
     {
         _logger.Info($"Deleting group {groupId}");
-        await AllowAccess(userId.ToString());
+        await AllowAccess(userId);
         var group = await _groupService.GetGroupAsync(groupId);
         if (group == null)
         {
@@ -120,7 +120,7 @@ public class GroupController : ControllerBase
     [Authorize(Policy = "JwtAuth")]
     public async Task<Response> JoinGroup([FromBody] JoinGroupForm form)
     {
-        await AllowAccess(form.UserId.ToString());
+        await AllowAccess(form.UserId);
         _logger.Info($"Joining group {form.GroupId}");
         var group = await _groupService.GetGroupAsync(form.GroupId);
         if (group == null)
@@ -142,7 +142,7 @@ public class GroupController : ControllerBase
     [Authorize(Policy = "JwtAuth")]
     public async Task<Response> LeaveGroupFromMember([FromBody] LeaveGroupForm form)
     {
-        await AllowAccess(form.UserId.ToString());
+        await AllowAccess(form.UserId);
         _logger.Info($"Leaving group {form.GroupId} from member {form.UserId}");
         var member = await _groupService.GetGroupMemberAsync(form.GroupId, form.UserId);
         if (member == null)

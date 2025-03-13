@@ -29,7 +29,7 @@ public class AuthService : IAuthService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public bool ValidateUser(string? userId)
+    public bool ValidateUser(int userId)
     {
         _logger.Trace("Validating user...");
         try
@@ -63,7 +63,7 @@ public class AuthService : IAuthService
                 return false;
             }
 
-            if (userIdClaim.Value == userId)
+            if (userIdClaim.Value == userId.ToString())
             {
                 _logger.Trace("User validation succeeded.");
                 return true;
@@ -81,7 +81,7 @@ public class AuthService : IAuthService
         }
     }
 
-    public async Task<bool> ValidateUserAsync(string? userId)
+    public async Task<bool> ValidateUserAsync(int userId)
     {
         return await Task.Run(() => ValidateUser(userId));
     }

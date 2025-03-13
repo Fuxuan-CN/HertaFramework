@@ -6,6 +6,6 @@ public interface IAuthService
 {
     Task<bool> AuthorizeAsync(string token);
     Task<string> GenTokenAsync(Dictionary<string, object> payload);
-    Task<bool> ValidateUserAsync(string? userId);
-    bool ValidateUser(string? userId);
+    Task<bool> ValidateUserAsync(int userId);
+    bool ValidateUser(int userId);
 }
