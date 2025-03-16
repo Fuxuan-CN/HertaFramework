@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Threading.Tasks;
-using Herta.Responses.Response;
+using Herta.Responses.BusinessResponse;
+using Herta.Models.Enums.BusinessCode;
 using Herta.Exceptions.HttpException;
 using Herta.Interfaces.IGroupService;
 using Herta.Interfaces.IAuthService;
@@ -41,7 +42,7 @@ public class GroupController : ControllerBase
     }
 
     [HttpGet("{groupId}")]
-    public async Task<Response> GetGroup(int groupId)
+    public async Task<BusinessResponse<object>> GetGroup(int groupId)
     {
         _logger.Info($"Getting group {groupId}");
         var group = await _groupService.GetGroupAsync(groupId);
@@ -49,12 +50,12 @@ public class GroupController : ControllerBase
         {
             throw new HttpException(404, "group not found");
         }
-        return new Response(group);
+        return new BusinessResponse<object>(BusinessCode.Success, "group found", group);
     }
 
     [HttpPost]
     [Authorize(Policy = "JwtAuth")]
-    public async Task<Response> CreateGroup([FromBody] CreateGroupForm form)
+    public async Task<BusinessResponse<object>> CreateGroup([FromBody] CreateGroupForm form)
     {
         _logger.Info($"Creating group {form.GroupName}");
         await AllowAccess(form.OwnerId);
@@ -66,22 +67,22 @@ public class GroupController : ControllerBase
             AvatarUrl = form.AvatarUrl,
         };
         var result = await _groupService.CreateGroupAsync(group);
-        return new Response(new { message = "group creation success", GroupId = result.groupId });
+        return new BusinessResponse<object>(BusinessCode.Success, "group created", new { groupId = result.groupId });
     }
 
     [HttpPut]
     [Authorize(Policy = "JwtAuth")]
-    public async Task<Response> UpdateGroup([FromBody] Groups group)
+    public async Task<BusinessResponse<object>> UpdateGroup([FromBody] Groups group)
     {
         _logger.Info($"Updating group {group.Id}");
         await AllowAccess(group.OwnerId);
         await _groupService.UpdateGroupAsync(group);
-        return new Response(new { message = "group update success" });
+        return new BusinessResponse<object>(BusinessCode.Success, "group updated");
     }
 
     [HttpPatch]
     [Authorize(Policy = "JwtAuth")]
-    public async Task<Response> UpdateGroupPart([FromBody] UpdateGroupForm form)
+    public async Task<BusinessResponse<object>> UpdateGroupPart([FromBody] UpdateGroupForm form)
     {
         _logger.Info($"Updating part of group {form.GroupId}");
         await AllowAccess(form.OwnerId);
@@ -93,7 +94,7 @@ public class GroupController : ControllerBase
         var IsSuccess = await _groupService.UpdateGroupPartAsync(form);
         if (IsSuccess)
         {
-            return new Response(new { message = "group update success" });
+            return new BusinessResponse<object>(BusinessCode.Success, "group updated");
         }
         else
         {
@@ -103,7 +104,7 @@ public class GroupController : ControllerBase
 
     [HttpDelete]
     [Authorize(Policy = "JwtAuth")]
-    public async Task<Response> DeleteGroup([FromQuery] int groupId, [FromQuery] int userId)
+    public async Task<BusinessResponse<object>> DeleteGroup([FromQuery] int groupId, [FromQuery] int userId)
     {
         _logger.Info($"Deleting group {groupId}");
         await AllowAccess(userId);
@@ -113,12 +114,12 @@ public class GroupController : ControllerBase
             throw new HttpException(404, "group not found");
         }
         await _groupService.DeleteGroupAsync(groupId);
-        return new Response(new { message = "group deletion success" });
+        return new BusinessResponse<object>(BusinessCode.Success, "group deleted");
     }
 
     [HttpPut("member")]
     [Authorize(Policy = "JwtAuth")]
-    public async Task<Response> JoinGroup([FromBody] JoinGroupForm form)
+    public async Task<BusinessResponse<object>> JoinGroup([FromBody] JoinGroupForm form)
     {
         await AllowAccess(form.UserId);
         _logger.Info($"Joining group {form.GroupId}");
@@ -135,12 +136,12 @@ public class GroupController : ControllerBase
         };
         await _groupService.AddMemberToGroupAsync(form.GroupId, member);
         
-        return new Response(new { message = "join group success", GroupId = group.Id });
+        return new BusinessResponse<object>(BusinessCode.Success, "join group success", new { groupId = group.Id });
     }
 
     [HttpDelete("member")]
     [Authorize(Policy = "JwtAuth")]
-    public async Task<Response> LeaveGroupFromMember([FromBody] LeaveGroupForm form)
+    public async Task<BusinessResponse<object>> LeaveGroupFromMember([FromBody] LeaveGroupForm form)
     {
         await AllowAccess(form.UserId);
         _logger.Info($"Leaving group {form.GroupId} from member {form.UserId}");
@@ -150,6 +151,6 @@ public class GroupController : ControllerBase
             throw new HttpException(404, "member not found");
         }
         await _groupService.RemoveMemberFromGroupAsync(form.GroupId, form.UserId);
-        return new Response(new { message = "leave group success" });
+        return new BusinessResponse<object>(BusinessCode.Success, "leave group success");
     }
 }
