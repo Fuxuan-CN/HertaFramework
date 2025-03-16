@@ -19,7 +19,7 @@ using NLog;
 namespace Herta.Controllers.GroupController;
 
 [ApiController]
-[Route("api/group")]
+[Route("group")]
 public class GroupController : ControllerBase
 {
     private readonly IGroupService _groupService;

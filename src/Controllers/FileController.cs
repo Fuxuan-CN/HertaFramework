@@ -17,7 +17,7 @@ using Herta.Responses.Response;
 namespace Herta.Controllers.FileController;
 
 [ApiController]
-[Route("api/file")]
+[Route("file")]
 public class FileController : ControllerBase
 {
     private readonly IFileService _fileService;

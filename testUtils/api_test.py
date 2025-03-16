@@ -1,8 +1,8 @@
 import requests
 import pytest
 
-BASE = "http://127.0.0.1:5000/api"
-USER = f"{BASE}/user"
+BASE = "http://127.0.0.1:5000"
+USER = f"{BASE}/users"
 REG = f"{USER}/register"
 LOGIN = f"{USER}/login"
 DELETE = f"{USER}/delete"

@@ -19,7 +19,7 @@ namespace Herta.Controllers.UserController;
 
 // 用户相关的接口
 [ApiController]
-[Route("api/user")]
+[Route("users")]
 public class UserController : ControllerBase
 {
     private readonly IUserService _userService;
