@@ -13,7 +13,7 @@ using NLog;
 namespace Herta.Controllers.ChatController;
 
 [ApiController]
-[Route("group/chat")]
+[Route("groups/chat")]
 public class ChatController : ControllerBase
 {
     private readonly IGroupService _groupService;
