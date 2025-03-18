@@ -25,33 +25,9 @@ public class BusinessResponse<T> : BaseResponse<object>
 
     private void SetStatusCode(BusinessCode code)
     {
-        switch (code)
-        {
-            case BusinessCode.Success:
-                HttpStatusCode = StatusCodes.Status200OK;
-                break;
-            case BusinessCode.ArgumentError:
-                HttpStatusCode = StatusCodes.Status400BadRequest;
-                break;
-            case BusinessCode.Unauthorized:
-                HttpStatusCode = StatusCodes.Status401Unauthorized;
-                break;
-            case BusinessCode.TokenFailed:
-                HttpStatusCode = StatusCodes.Status401Unauthorized;
-                break;
-            case BusinessCode.Forbidden:
-                HttpStatusCode = StatusCodes.Status403Forbidden;
-                break;
-            case BusinessCode.NotFound:
-                HttpStatusCode = StatusCodes.Status404NotFound;
-                break;
-            case BusinessCode.ServerError:
-                HttpStatusCode = StatusCodes.Status500InternalServerError;
-                break;
-            default:
-                HttpStatusCode = StatusCodes.Status200OK;
-                break;
-        }
+        // 提取Http状态码，比如 40100 对应 401，实际上就是提取前三位用作状态码
+        int _httpCode = (int)code / 10000;
+        HttpStatusCode = (int)_httpCode == 0 ? StatusCodes.Status200OK : (int)_httpCode;
     }
 
     public override async Task ExecuteResultAsync(ActionContext context)
