@@ -12,7 +12,8 @@ using Herta.Exceptions.HttpException;
 using Herta.Utils.Logger;
 using NLog;
 using Herta.Responses.FileResponse;
-using Herta.Responses.Response;
+using Herta.Responses.BusinessResponse;
+using Herta.Models.Enums.BusinessCode;
 
 namespace Herta.Controllers.FileController;
 
@@ -48,22 +49,22 @@ public class FileController : ControllerBase
 
     [HttpPut("{userId}/{fileName}")]
     [Authorize(Policy = "JwtAuth")]
-    public async Task<Response> UploadFile([FromRoute] int userId, [FromRoute] string fileName, IFormFile file)
+    public async Task<BusinessResponse<bool>> UploadFile([FromRoute] int userId, [FromRoute] string fileName, IFormFile file)
     {
         _logger.Debug($"Try upload file {fileName}.");
         await AllowAccess(userId);
         var fileStream = file.OpenReadStream();
         await _fileService.SaveFileFromStreamAsync(userId, fileName, fileStream);
-        return new Response("File uploaded successfully");
+        return new BusinessResponse<bool>(BusinessCode.Success, "File uploaded successfully", true);
     }
 
     [HttpDelete("{userId}/{fileName}")]
     [Authorize(Policy = "JwtAuth")]
-    public async Task<Response> DeleteFile([FromRoute] int userId, [FromRoute] string fileName)
+    public async Task<BusinessResponse<bool>> DeleteFile([FromRoute] int userId, [FromRoute] string fileName)
     {
         _logger.Debug($"Try delete file {fileName}.");
         await AllowAccess(userId);
         await _fileService.DeleteFileAsync(userId, fileName);
-        return new Response("File deleted successfully");
+        return new BusinessResponse<bool>(BusinessCode.Success, "File deleted successfully", true);
     }
 }
