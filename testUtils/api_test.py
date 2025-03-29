@@ -139,7 +139,7 @@ def test_register():
     response = requests.post(REG, json=reg_data)
     assert response.status_code == 200, f"注册失败，状态码：{response.status_code}, 响应内容：{response.text}"
     global TOKEN
-    TOKEN = response.json()["token"]
+    TOKEN = response.json()["data"]["token"]
 
     # 测试重复注册
     response = requests.post(REG, json=reg_data_existing)

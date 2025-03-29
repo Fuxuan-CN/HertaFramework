@@ -26,11 +26,13 @@ public class GroupController : ControllerBase
     private readonly IGroupService _groupService;
     private readonly IAuthService _authService;
     private readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(GroupController));
+    private readonly IConfiguration _configuration;
 
-    public GroupController(IGroupService groupService, IAuthService authService)
+    public GroupController(IGroupService groupService, IAuthService authService, IConfiguration configuration)
     {
         _groupService = groupService;
         _authService = authService;
+        _configuration = configuration;
     }
 
     private async Task AllowAccess(int userId)
@@ -39,6 +41,14 @@ public class GroupController : ControllerBase
         {
             throw new HttpException(403, "not allowed unauthorized access");
         }
+    }
+
+    [HttpGet("hobbies")]
+    public BusinessResponse<List<string>> GetHobbies()
+    {
+        _logger.Info("Getting hobbies");
+        var hobbies = _configuration.GetSection("Hobbies").Get<List<string>>();
+        return new BusinessResponse<List<string>>(BusinessCode.Success, "hobbies found", hobbies);
     }
 
     [HttpGet("{groupId}")]

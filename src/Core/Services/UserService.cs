@@ -26,7 +26,7 @@ public class UserService : IUserService
     private readonly ApplicationDbContext _context;
     private readonly NLog.ILogger _logger = LoggerManager.GetLogger(typeof(UserService));
 
-    public UserService(ApplicationDbContext context, IConfiguration configuration)
+    public UserService(ApplicationDbContext context)
     {
         _context = context;
     }
